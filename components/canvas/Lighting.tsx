@@ -1,6 +1,6 @@
 "use client";
 
-import { PALETTE, SUN_DIRECTION, WORLD } from "@/lib/constants";
+import { PALETTE, SUN_DIRECTION } from "@/lib/constants";
 
 /**
  * Golden-hour rig: warm directional key (sun, ~35° elevation), cool sky
@@ -9,7 +9,8 @@ import { PALETTE, SUN_DIRECTION, WORLD } from "@/lib/constants";
  */
 export default function Lighting() {
   const sunPos = SUN_DIRECTION.clone().multiplyScalar(190);
-  const b = WORLD.islandRadius * 2.4;
+  // one map across the whole core archipelago (focus-following comes in P10)
+  const b = 95;
 
   return (
     <>
@@ -24,8 +25,8 @@ export default function Lighting() {
         shadow-camera-right={b}
         shadow-camera-top={b}
         shadow-camera-bottom={-b}
-        shadow-camera-near={100}
-        shadow-camera-far={300}
+        shadow-camera-near={60}
+        shadow-camera-far={340}
         shadow-bias={-0.0002}
         shadow-normalBias={0.6}
       />

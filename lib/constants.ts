@@ -66,11 +66,11 @@ export const CAMERA = {
     polar: [(5 * Math.PI) / 180, (120 * Math.PI) / 180] as const,
   },
   // Opening shot looks toward the sun side — golden-hour backlight like
-  // image.png, island silhouetted against the glow.
+  // image.png, the archipelago spread against the glow.
   initial: {
-    radius: 48,
+    radius: 118,
     azimuth: (110 * Math.PI) / 180,
-    polar: (80 * Math.PI) / 180,
+    polar: (78 * Math.PI) / 180,
   },
 } as const;
 

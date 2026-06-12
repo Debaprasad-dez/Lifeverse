@@ -7,6 +7,8 @@ import gsap from "gsap";
 import { CAMERA } from "@/lib/constants";
 import { clamp } from "@/lib/noise";
 import { useCameraStore, type CameraMode } from "@/stores/cameraStore";
+import { useWorldStore } from "@/stores/worldStore";
+import { islandCenter, KINGDOM_ORDER } from "@/engine/resolver/layout";
 
 const TWO_PI = Math.PI * 2;
 
@@ -192,10 +194,23 @@ export default function CameraRig() {
     };
 
     const onKeyDown = (e: KeyboardEvent): void => {
-      if (e.key !== "Escape") return;
       const store = useCameraStore.getState();
-      if (store.mode === "ORBIT_ISLAND" || store.mode === "INSPECT") {
-        store.flyToWorld();
+
+      if (e.key === "Escape") {
+        if (store.mode === "ORBIT_ISLAND" || store.mode === "INSPECT") {
+          store.flyToWorld();
+        }
+        return;
+      }
+
+      // 1–7 fly straight to each core kingdom
+      const digit = Number(e.key);
+      if (digit >= 1 && digit <= KINGDOM_ORDER.length) {
+        const id = KINGDOM_ORDER[digit - 1];
+        const island = useWorldStore.getState().state?.islands.find((i) => i.id === id);
+        if (island && !island.locked) {
+          store.flyToIsland(id, islandCenter(island));
+        }
       }
     };
 

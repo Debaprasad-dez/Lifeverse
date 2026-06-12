@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { useThree } from "@react-three/fiber";
+import { useEffect, useRef } from "react";
+import { addAfterEffect, useThree } from "@react-three/fiber";
 import { Stats } from "@react-three/drei";
 
 /**
@@ -14,8 +14,15 @@ import { Stats } from "@react-three/drei";
  */
 export default function DebugPerf() {
   const gl = useThree((s) => s.gl);
+  const last = useRef({ calls: 0, tris: 0 });
 
   useEffect(() => {
+    // renderer.info resets at the start of each frame — sample AFTER render
+    const stopSampling = addAfterEffect(() => {
+      last.current.calls = gl.info.render.calls;
+      last.current.tris = gl.info.render.triangles;
+    });
+
     const el = document.createElement("div");
     el.style.cssText =
       "position:fixed;left:8px;bottom:8px;z-index:50;font-family:monospace;" +
@@ -24,12 +31,12 @@ export default function DebugPerf() {
     document.body.appendChild(el);
 
     const id = setInterval(() => {
-      const r = gl.info.render;
       const m = gl.info.memory;
-      el.textContent = `calls ${r.calls} · tris ${(r.triangles / 1000).toFixed(1)}k · geo ${m.geometries} · tex ${m.textures}`;
+      el.textContent = `calls ${last.current.calls} · tris ${(last.current.tris / 1000).toFixed(1)}k · geo ${m.geometries} · tex ${m.textures}`;
     }, 500);
 
     return () => {
+      stopSampling();
       clearInterval(id);
       el.remove();
     };

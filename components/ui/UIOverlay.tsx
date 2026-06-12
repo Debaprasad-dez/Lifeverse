@@ -107,7 +107,7 @@ function Hints() {
           className="glass absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2"
         >
           <span className="font-label text-xs font-medium tracking-wide text-ink-soft">
-            Drag to orbit · Scroll to zoom · Double-click the island to fly
+            Drag to orbit · Scroll to zoom · Double-click an island to fly · 1–7 visit kingdoms
           </span>
         </motion.div>
       )}

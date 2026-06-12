@@ -9,7 +9,7 @@ import CloudField from "@/components/canvas/Sky/CloudField";
 import CloudSea from "@/components/canvas/Sky/CloudSea";
 import Lighting from "@/components/canvas/Lighting";
 import PostFX from "@/components/canvas/PostFX";
-import FirstIsland from "@/components/canvas/islands/FirstIsland";
+import WorldGraph from "@/components/canvas/WorldGraph";
 import CameraRig from "@/components/canvas/camera/CameraRig";
 
 const initialPosition: [number, number, number] = (() => {
@@ -48,7 +48,7 @@ export default function WorldCanvas() {
         <Lighting />
         <CloudField />
         <CloudSea />
-        <FirstIsland />
+        <WorldGraph />
         <CameraRig />
         <PostFX />
         {debug && <DebugPerf />}

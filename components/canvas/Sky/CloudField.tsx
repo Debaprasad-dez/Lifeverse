@@ -152,18 +152,19 @@ export default function CloudField() {
     const fades = new Float32Array(COUNT);
 
     for (let i = 0; i < COUNT; i++) {
-      // first six are hero cumulus framing the island, like screen.png
+      // first six are hero cumulus framing the archipelago from beyond it —
+      // never inside the camera orbit shell (max world radius 220)
       const hero = i < 6;
-      const radius = hero ? 70 + rng() * 80 : 95 + rng() * 270;
+      const radius = hero ? 250 + rng() * 90 : 130 + rng() * 260;
       const big = hero || rng() < 0.45;
       const width = hero
-        ? 75 + rng() * 55
+        ? 90 + rng() * 70
         : (big ? 58 : 24) + rng() * (big ? 70 : 26);
       const low = hero || rng() < 0.62;
       specs.push({
         radius,
         thetaStart: rng() * Math.PI * 2,
-        y: hero ? -20 + rng() * 26 : low ? -26 + rng() * 34 : 14 + rng() * 60,
+        y: hero ? -24 + rng() * 30 : low ? -26 + rng() * 34 : 14 + rng() * 60,
         width,
         height: width * (0.52 + rng() * 0.1),
         speed: (0.0016 + rng() * 0.0042) * (rng() < 0.5 ? 1 : 1.4),
