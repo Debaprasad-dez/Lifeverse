@@ -42,8 +42,9 @@ export default function Onboarding() {
 
   useEffect(() => {
     const flags = getLocal("flags", DEFAULT_FLAGS);
-    if (flags.onboarded || reducedMotion()) {
-      if (!flags.onboarded) setLocal("flags", { ...flags, onboarded: true });
+    // genesis owns the first run; the tour is only for pre-genesis worlds
+    if (flags.onboarded || !flags.genesisDone || reducedMotion()) {
+      if (!flags.onboarded && reducedMotion()) setLocal("flags", { ...flags, onboarded: true });
       return;
     }
 

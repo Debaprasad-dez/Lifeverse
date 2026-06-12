@@ -1,7 +1,11 @@
 "use client";
 
+import { useRef } from "react";
 import { Detailed } from "@react-three/drei";
-import type { ThreeEvent } from "@react-three/fiber";
+import { useFrame, type ThreeEvent } from "@react-three/fiber";
+import { Group } from "three";
+import { clamp } from "@/lib/noise";
+import { RISE_DURATION_S, RISE_STAGGER_S, useGenesisStore } from "@/stores/genesisStore";
 import type { Island } from "@/engine/schema/world";
 import type { IslandGeometry } from "@/engine/generation/island";
 import { islandCenter, type KingdomLayout } from "@/engine/resolver/layout";
@@ -17,6 +21,8 @@ interface KingdomIslandProps {
   geomMid?: IslandGeometry;
   geomLow?: IslandGeometry;
   layout?: KingdomLayout;
+  /** Stagger order for the genesis rise. */
+  riseIndex?: number;
 }
 
 /**
@@ -29,7 +35,31 @@ export default function KingdomIsland({
   geomMid,
   geomLow,
   layout,
+  riseIndex = 0,
 }: KingdomIslandProps) {
+  const riseGroup = useRef<Group>(null);
+
+  // genesis: islands wait under the cloud sea, then surge up one by one
+  useFrame(() => {
+    const g = riseGroup.current;
+    if (!g) return;
+    const { phase, riseStart } = useGenesisStore.getState();
+    const baseY = island.position[1];
+    if (phase === "asking") {
+      g.position.y = baseY - 75;
+      return;
+    }
+    if (phase === "rising") {
+      const delay = riseIndex * RISE_STAGGER_S * 0.6;
+      const t = performance.now() / 1000 - riseStart - delay;
+      const k = clamp(t / RISE_DURATION_S, 0, 1);
+      // easeOutBack-lite: a touch of overshoot as the island settles
+      const e = 1 + 1.35 * Math.pow(k - 1, 3) + 0.35 * Math.pow(k - 1, 2);
+      g.position.y = baseY - 75 * (1 - e);
+      return;
+    }
+    g.position.y = baseY;
+  });
   const material = island.locked
     ? getToonMaterial("locked-island", {
         color: "#75879e",
@@ -37,6 +67,9 @@ export default function KingdomIsland({
         rimStrength: 0.2,
       })
     : getToonMaterial("island", { vertexColors: true });
+
+  const genesisPhase = useGenesisStore((s) => s.phase);
+  const dressed = genesisPhase === "idle" || genesisPhase === "done";
 
   const onDoubleClick = (e: ThreeEvent<MouseEvent>): void => {
     e.stopPropagation();
@@ -73,6 +106,7 @@ export default function KingdomIsland({
   return (
     <group>
       <group
+        ref={riseGroup}
         position={island.position}
         onDoubleClick={onDoubleClick}
         onPointerOver={onPointerOver}
@@ -98,7 +132,7 @@ export default function KingdomIsland({
           />
         )}
       </group>
-      {layout && labelPos && (
+      {layout && labelPos && dressed && (
         <IslandLabel
           islandId={island.id}
           text={layout.label}

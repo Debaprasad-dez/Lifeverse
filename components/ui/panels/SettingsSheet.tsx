@@ -6,6 +6,8 @@ import { DEFAULT_SETTINGS, getLocal, setLocal, type Settings } from "@/lib/stora
 import { clearApiKey, hasApiKey, storeApiKey } from "@/lib/crypto";
 import { MODEL_CHAIN } from "@/lib/ai/models";
 import { useUIStore } from "@/stores/uiStore";
+import { useWorldStore } from "@/stores/worldStore";
+import { tryParseWorldState } from "@/engine/schema/world";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -164,7 +166,54 @@ export default function SettingsSheet() {
             <option value="off">Off</option>
           </select>
         </Row>
+
+        <div className="border-t border-white/60 pt-2.5">
+          <Row label="Your world">
+            <div className="flex gap-1.5">
+              <button type="button" className="pill-btn secondary" onClick={exportWorld}>
+                Export
+              </button>
+              <label className="pill-btn secondary cursor-pointer">
+                Import
+                <input
+                  type="file"
+                  accept=".json,.lifeverse"
+                  className="hidden"
+                  onChange={(e) => void importWorld(e)}
+                />
+              </label>
+            </div>
+          </Row>
+          <p className="mt-1 font-body text-[0.6rem] leading-snug text-ink-soft/80">
+            A .lifeverse.json file — share it, back it up, carry it anywhere.
+          </p>
+        </div>
       </div>
     </motion.div>
   );
+}
+
+function exportWorld(): void {
+  const state = useWorldStore.getState().state;
+  if (!state) return;
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `world-${state.timestamp.slice(0, 10)}.lifeverse.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function importWorld(e: React.ChangeEvent<HTMLInputElement>): Promise<void> {
+  const file = e.target.files?.[0];
+  e.target.value = "";
+  if (!file) return;
+  try {
+    const parsed: unknown = JSON.parse(await file.text());
+    const state = tryParseWorldState(parsed);
+    if (state) useWorldStore.getState().replaceState(state);
+  } catch {
+    // malformed file — the world stays unchanged by design
+  }
 }

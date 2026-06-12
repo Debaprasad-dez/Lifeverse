@@ -14,6 +14,7 @@ export interface Settings {
 export interface Flags {
   onboarded: boolean;
   hintsSeen: boolean;
+  genesisDone: boolean;
 }
 
 interface LocalSchema {
@@ -32,6 +33,7 @@ export const DEFAULT_SETTINGS: Settings = {
 export const DEFAULT_FLAGS: Flags = {
   onboarded: false,
   hintsSeen: false,
+  genesisDone: false,
 };
 
 const PREFIX = "lifeverse:";

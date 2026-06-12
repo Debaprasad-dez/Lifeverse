@@ -1,12 +1,25 @@
 "use client";
 
 import { motion } from "framer-motion";
-import type { Island } from "@/engine/schema/world";
+import type { CoreKingdomId, Island } from "@/engine/schema/world";
 import type { KingdomLayout } from "@/engine/resolver/layout";
 import { islandCenter } from "@/engine/resolver/layout";
+import { LIFE_EVENTS, type LifeEventKind } from "@/engine/evolution/rules";
 import { useCameraStore } from "@/stores/cameraStore";
 import { useWorldStore } from "@/stores/worldStore";
+import { useLifeStore } from "@/stores/lifeStore";
 import Tube from "./Tube";
+
+/** Quick check-ins per kingdom — logging IS the game loop. */
+const KINGDOM_ACTIONS: Record<CoreKingdomId, LifeEventKind[]> = {
+  career: ["ship", "skill_practice"],
+  health: ["exercise", "meditate"],
+  learning: ["read", "study"],
+  finance: ["save"],
+  relationships: ["outreach"],
+  creativity: ["create"],
+  adventure: ["explore"],
+};
 
 interface IslandPanelProps {
   island: Island;
@@ -48,6 +61,21 @@ export default function IslandPanel({ island, layout }: IslandPanelProps) {
         <Tube label="Ecosystem" value={island.ecosystem.flora} color="#56a84b" />
         <Tube label="Radiance" value={island.lightingIntensity} color="#fdd34d" />
       </div>
+
+      {mode !== "ORBIT_WORLD" && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {(KINGDOM_ACTIONS[island.id as CoreKingdomId] ?? []).map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              className="pill-btn secondary"
+              onClick={() => useLifeStore.getState().logEvent(kind)}
+            >
+              + {LIFE_EVENTS[kind].label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="mt-3.5 flex items-center justify-between">
         <span className="font-body text-[0.68rem] text-ink-soft">

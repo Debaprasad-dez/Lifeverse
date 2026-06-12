@@ -44,8 +44,10 @@ import AmbientLife from "@/components/canvas/effects/AmbientLife";
 import WeatherLayer from "@/components/canvas/effects/WeatherLayer";
 import HoverMarker from "@/components/canvas/HoverMarker";
 import ContextualUI from "@/components/canvas/ContextualUI";
+import GrowthFX from "@/components/canvas/effects/GrowthFX";
 import { useUIStore } from "@/stores/uiStore";
 import { useCameraStore } from "@/stores/cameraStore";
+import { useGenesisStore } from "@/stores/genesisStore";
 import { playChime } from "@/lib/sound";
 import type { ThreeEvent } from "@react-three/fiber";
 import { MeshBasicMaterial } from "three";
@@ -247,6 +249,8 @@ const glowMaterial = new MeshBasicMaterial({ toneMapped: false });
 /** The whole data-driven world: islands, flora, structures, life, weather. */
 export default function WorldGraph() {
   const state = useWorldStore((s) => s.state);
+  const genesisPhase = useGenesisStore((s) => s.phase);
+  const dressed = genesisPhase === "idle" || genesisPhase === "done";
 
   useEffect(() => {
     void useWorldStore.getState().boot();
@@ -343,7 +347,7 @@ export default function WorldGraph() {
 
   return (
     <group>
-      {data.islands.map((b) => (
+      {data.islands.map((b, i) => (
         <KingdomIsland
           key={b.island.id}
           island={b.island}
@@ -351,73 +355,84 @@ export default function WorldGraph() {
           geomMid={b.geomMid}
           geomLow={b.geomLow}
           layout={b.layout}
+          riseIndex={i}
         />
       ))}
 
-      <InstancedPool geometry={GEOS.stalactite} material={rockMat} instances={data.stalactites} />
-      <InstancedPool
-        geometry={GEOS.trunk}
-        material={getToonMaterial("trunk", { color: PALETTE.trunk })}
-        instances={data.trunks}
-        castShadow
-      />
-      <InstancedPool
-        geometry={GEOS.canopy}
-        material={getToonMaterial("canopy", { flatShading: true, rimStrength: 0.38 })}
-        instances={data.canopies}
-        castShadow
-        receiveShadow
-      />
-      <InstancedPool
-        geometry={GEOS.grassTuft}
-        material={getToonMaterial("grass", { flatShading: true })}
-        instances={data.grass}
-      />
-      <InstancedPool
-        geometry={GEOS.flower}
-        material={getToonMaterial("flower", {
-          color: PALETTE.gold,
-          emissive: "#ffc83d",
-          emissiveIntensity: 0.85,
-        })}
-        instances={data.flowers}
-      />
+      {/* dressing is world-space-baked — hidden until the genesis rise lands */}
+      {dressed && (
+        <>
+          <InstancedPool
+            geometry={GEOS.stalactite}
+            material={rockMat}
+            instances={data.stalactites}
+          />
+          <InstancedPool
+            geometry={GEOS.trunk}
+            material={getToonMaterial("trunk", { color: PALETTE.trunk })}
+            instances={data.trunks}
+            castShadow
+          />
+          <InstancedPool
+            geometry={GEOS.canopy}
+            material={getToonMaterial("canopy", { flatShading: true, rimStrength: 0.38 })}
+            instances={data.canopies}
+            castShadow
+            receiveShadow
+          />
+          <InstancedPool
+            geometry={GEOS.grassTuft}
+            material={getToonMaterial("grass", { flatShading: true })}
+            instances={data.grass}
+          />
+          <InstancedPool
+            geometry={GEOS.flower}
+            material={getToonMaterial("flower", {
+              color: PALETTE.gold,
+              emissive: "#ffc83d",
+              emissiveIntensity: 0.85,
+            })}
+            instances={data.flowers}
+          />
 
-      {PRIM_KINDS.map((kind) => (
-        <InstancedPool
-          key={`body-${kind}`}
-          geometry={GEOS[kind]}
-          material={bodyMat}
-          instances={poolInstances.body[kind]}
-          castShadow
-          receiveShadow
-          onPointerOver={hoverHandler(poolInstances.bodyAnchorIdx[kind])}
-          onPointerOut={unhoverHandler}
-          onClick={clickHandler(poolInstances.bodyAnchorIdx[kind])}
-        />
-      ))}
-      {PRIM_KINDS.map((kind) => (
-        <InstancedPool
-          key={`glow-${kind}`}
-          geometry={GEOS[kind]}
-          material={glowMaterial}
-          instances={poolInstances.glow[kind]}
-          onPointerOver={hoverHandler(poolInstances.glowAnchorIdx[kind])}
-          onPointerOut={unhoverHandler}
-          onClick={clickHandler(poolInstances.glowAnchorIdx[kind])}
-        />
-      ))}
+          {PRIM_KINDS.map((kind) => (
+            <InstancedPool
+              key={`body-${kind}`}
+              geometry={GEOS[kind]}
+              material={bodyMat}
+              instances={poolInstances.body[kind]}
+              castShadow
+              receiveShadow
+              onPointerOver={hoverHandler(poolInstances.bodyAnchorIdx[kind])}
+              onPointerOut={unhoverHandler}
+              onClick={clickHandler(poolInstances.bodyAnchorIdx[kind])}
+            />
+          ))}
+          {PRIM_KINDS.map((kind) => (
+            <InstancedPool
+              key={`glow-${kind}`}
+              geometry={GEOS[kind]}
+              material={glowMaterial}
+              instances={poolInstances.glow[kind]}
+              onPointerOver={hoverHandler(poolInstances.glowAnchorIdx[kind])}
+              onPointerOut={unhoverHandler}
+              onClick={clickHandler(poolInstances.glowAnchorIdx[kind])}
+            />
+          ))}
 
-      <HoverMarker anchors={pools?.anchors ?? []} />
-      <ContextualUI built={data.islands} anchors={pools?.anchors ?? []} />
+          <HoverMarker anchors={pools.anchors} />
+          <ContextualUI built={data.islands} anchors={pools.anchors} />
 
-      {data.waterfalls.map((w, i) => (
-        <Waterfall key={i} lip={w.lip} dir={w.dir} style={w.style} />
-      ))}
+          {data.waterfalls.map((w, i) => (
+            <Waterfall key={i} lip={w.lip} dir={w.dir} style={w.style} />
+          ))}
 
-      <BridgeLayer state={state} />
-      <AmbientLife state={state} built={data.islands} />
-      <WeatherLayer state={state} built={data.islands} />
+          <BridgeLayer state={state} />
+          <AmbientLife state={state} built={data.islands} />
+          <WeatherLayer state={state} built={data.islands} />
+          <GrowthFX anchors={pools.anchors} built={data.islands} />
+        </>
+      )}
     </group>
   );
 }

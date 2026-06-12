@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useUIStore } from "@/stores/uiStore";
+import { useLifeStore } from "@/stores/lifeStore";
+import { useGenesisStore } from "@/stores/genesisStore";
+import { useWorldStore } from "@/stores/worldStore";
+import { DEFAULT_FLAGS, getLocal, setLocal } from "@/lib/storage";
+import { on } from "@/lib/events";
 import SettingsSheet from "@/components/ui/panels/SettingsSheet";
+import GenesisSheet from "@/components/ui/panels/GenesisSheet";
 import Onboarding from "@/components/ui/Onboarding";
 
 /**
@@ -13,6 +19,7 @@ import Onboarding from "@/components/ui/Onboarding";
  */
 export default function UIOverlay() {
   const settingsOpen = useUIStore((s) => s.activePanel?.kind === "settings");
+  const genesisPhase = useGenesisStore((s) => s.phase);
   return (
     <div className="pointer-events-none fixed inset-0 z-10 font-body">
       <BrandChip />
@@ -20,8 +27,97 @@ export default function UIOverlay() {
       <CompanionOrb />
       <Hints />
       <AnimatePresence>{settingsOpen && <SettingsSheet />}</AnimatePresence>
+      {genesisPhase === "asking" && <GenesisSheet />}
+      <GenesisGate />
+      <GenesisFlash />
+      <Toast />
       <Onboarding />
     </div>
+  );
+}
+
+/** Decides whether this browser runs Genesis (fresh) or skips it (returning). */
+function GenesisGate() {
+  useEffect(() => {
+    const flags = getLocal("flags", DEFAULT_FLAGS);
+    if (flags.genesisDone) return;
+
+    const decide = (source: "snapshot" | "fixture"): void => {
+      if (source === "snapshot") {
+        // existing world — never re-run genesis over it
+        setLocal("flags", { ...getLocal("flags", DEFAULT_FLAGS), genesisDone: true });
+      } else {
+        useGenesisStore.getState().begin();
+      }
+    };
+
+    const booted = useWorldStore.getState().bootSource;
+    if (booted) {
+      decide(booted);
+      return;
+    }
+    return on("world:booted", ({ source }) => decide(source));
+  }, []);
+
+  // rise timer → finish + hydrate life events once world is interactive
+  useEffect(() => {
+    void useLifeStore.getState().hydrate();
+    return useGenesisStore.subscribe((s, prev) => {
+      if (s.phase === "rising" && prev.phase !== "rising") {
+        const total = (13 * 0.85 * 0.6 + 2.6 + 0.4) * 1000;
+        setTimeout(() => useGenesisStore.getState().finishRise(), total);
+      }
+    });
+  }, []);
+
+  return null;
+}
+
+/** Soft white bloom masking the dressing pop-in at the end of the rise. */
+function GenesisFlash() {
+  const [flash, setFlash] = useState(false);
+
+  useEffect(() => {
+    return useGenesisStore.subscribe((s, prev) => {
+      if (prev.phase === "rising" && s.phase === "done") {
+        setFlash(true);
+        setTimeout(() => setFlash(false), 950);
+      }
+    });
+  }, []);
+
+  return (
+    <AnimatePresence>
+      {flash && (
+        <motion.div
+          initial={{ opacity: 0.92 }}
+          animate={{ opacity: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.9, ease: "easeOut" }}
+          className="pointer-events-none absolute inset-0 bg-white"
+        />
+      )}
+    </AnimatePresence>
+  );
+}
+
+/** Check-in confirmations — ephemeral, bottom-center. */
+function Toast() {
+  const toast = useLifeStore((s) => s.toast);
+  return (
+    <AnimatePresence>
+      {toast && (
+        <motion.div
+          initial={{ opacity: 0, y: 14, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 8 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="glass absolute bottom-20 left-1/2 -translate-x-1/2 px-4 py-2"
+        >
+          <span className="font-label text-xs font-semibold text-ink">{toast}</span>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

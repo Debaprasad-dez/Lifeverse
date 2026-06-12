@@ -17,8 +17,12 @@ const AUTOSAVE_DEBOUNCE_MS = 1500;
 interface WorldStore {
   state: WorldState | null;
   hydrated: boolean;
+  /** Where the booted world came from (genesis gating reads this). */
+  bootSource: "snapshot" | "fixture" | null;
   boot: () => Promise<void>;
   applyDeltas: (deltas: WorldDelta[]) => void;
+  /** Full replacement (genesis, import). Validates and snapshots. */
+  replaceState: (next: WorldState) => void;
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -39,6 +43,7 @@ function scheduleSnapshot(get: () => WorldState | null): void {
 export const useWorldStore = create<WorldStore>((set, get) => ({
   state: null,
   hydrated: false,
+  bootSource: null,
 
   boot: async () => {
     if (get().hydrated) return;
@@ -52,7 +57,7 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
         const snapshot = await loadLatestSnapshot();
         const restored = snapshot ? tryParseWorldState(snapshot.state) : null;
         if (restored) {
-          set({ state: restored });
+          set({ state: restored, bootSource: "snapshot" });
           emit("world:booted", { state: restored, source: "snapshot" });
           void pruneSnapshots().catch(() => {});
           return;
@@ -62,6 +67,7 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
       }
     }
 
+    set({ bootSource: "fixture" });
     emit("world:booted", { state: fixture, source: "fixture" });
     void pruneSnapshots().catch(() => {});
   },
@@ -73,6 +79,13 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
     for (const delta of deltas) next = applyWorldDelta(next, delta);
     set({ state: next });
     for (const delta of deltas) emit("delta:applied", { delta });
+    scheduleSnapshot(() => get().state);
+  },
+
+  replaceState: (next) => {
+    const parsed = tryParseWorldState(next);
+    if (!parsed) return;
+    set({ state: parsed, hydrated: true });
     scheduleSnapshot(() => get().state);
   },
 }));
