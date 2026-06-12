@@ -7,6 +7,7 @@
 import { create } from "zustand";
 import { getDB } from "@/lib/db";
 import { lifeEventToDeltas, LIFE_EVENTS, type LifeEvent, type LifeEventKind } from "@/engine/evolution/rules";
+import { advanceQuests } from "@/engine/evolution/quests";
 import { useWorldStore } from "@/stores/worldStore";
 
 const EVENTS_KEY = "lifeEvents";
@@ -66,12 +67,15 @@ export const useLifeStore = create<LifeStore>((set, get) => ({
     set({ events });
 
     const streak = streakDays(events, kind, now);
-    const deltas = lifeEventToDeltas(kind, world.state, streak);
-    world.applyDeltas(deltas);
-
     const spec = LIFE_EVENTS[kind];
-    const message =
-      streak === 7
+    const deltas = lifeEventToDeltas(kind, world.state, streak);
+    // the same check-in advances that kingdom's active quest one step
+    const quest = advanceQuests(world.state, spec.islandId);
+    world.applyDeltas([...deltas, ...quest.deltas]);
+
+    const message = quest.completedQuest
+      ? `Quest complete: ${quest.completedQuest.title}!`
+      : streak === 7
         ? `${spec.label} — 7-day streak! An aurora rises.`
         : streak >= 2
           ? `${spec.label} — ${streak}-day streak. The kingdom grows.`

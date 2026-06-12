@@ -99,6 +99,18 @@ export default function GrowthFX({ anchors, built }: GrowthFXProps) {
           key = delta.structureId;
         }
       }
+      // landmarks carry their island nested — celebrate at the island center
+      // (the landmark mesh itself only exists after the resolver re-runs)
+      if (!pos && (delta.type === "monument_erected" || delta.type === "memory_added")) {
+        const islandId =
+          delta.type === "monument_erected" ? delta.monument.islandId : delta.memory.islandId;
+        const b = built.find((x) => x.island.id === islandId);
+        if (b) {
+          pos = new Vector3(...b.island.position).add(new Vector3(0, 2.5, 0));
+          radius = 5;
+          key = delta.type === "monument_erected" ? delta.monument.id : delta.memory.id;
+        }
+      }
       if (!pos && "islandId" in delta && delta.islandId) {
         const b = built.find((x) => x.island.id === delta.islandId);
         if (b) {

@@ -8,6 +8,7 @@ import { LIFE_EVENTS, type LifeEventKind } from "@/engine/evolution/rules";
 import { useCameraStore } from "@/stores/cameraStore";
 import { useWorldStore } from "@/stores/worldStore";
 import { useLifeStore } from "@/stores/lifeStore";
+import { useUIStore } from "@/stores/uiStore";
 import Tube from "./Tube";
 
 /** Quick check-ins per kingdom — logging IS the game loop. */
@@ -74,13 +75,28 @@ export default function IslandPanel({ island, layout }: IslandPanelProps) {
               + {LIFE_EVENTS[kind].label}
             </button>
           ))}
+          <button
+            type="button"
+            className="pill-btn secondary"
+            title="Plant a memory landmark"
+            onClick={() => useUIStore.getState().openMemoryForm(island.id)}
+          >
+            🌸 Memory
+          </button>
         </div>
       )}
 
       <div className="mt-3.5 flex items-center justify-between">
-        <span className="font-body text-[0.68rem] text-ink-soft">
-          {questCount > 0 ? `${questCount} active quest${questCount > 1 ? "s" : ""}` : "No active quests"}
-        </span>
+        <button
+          type="button"
+          className="font-body text-[0.68rem] text-ink-soft underline-offset-2 hover:underline disabled:no-underline"
+          title="Open quest scroll"
+          onClick={() => useUIStore.getState().openQuestScroll(island.id)}
+        >
+          {questCount > 0
+            ? `${questCount} active quest${questCount > 1 ? "s" : ""} →`
+            : "Quests →"}
+        </button>
         {mode === "ORBIT_WORLD" ? (
           <button
             type="button"

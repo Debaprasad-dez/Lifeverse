@@ -10,6 +10,8 @@ import { emit } from "@/lib/events";
 export type ActivePanel =
   | { kind: "island"; islandId: string }
   | { kind: "structure"; islandId: string; structureId: string }
+  | { kind: "quests"; islandId: string }
+  | { kind: "memory-form"; islandId: string }
   | { kind: "settings" }
   | null;
 
@@ -25,6 +27,8 @@ interface UIStore {
 
   openIslandPanel: (islandId: string) => void;
   openStructureSheet: (islandId: string, structureId: string) => void;
+  openQuestScroll: (islandId: string) => void;
+  openMemoryForm: (islandId: string) => void;
   openSettings: () => void;
   dismiss: () => void;
   setHoveredIsland: (id: string | null) => void;
@@ -46,6 +50,8 @@ export const useUIStore = create<UIStore>((set) => ({
   },
   openStructureSheet: (islandId, structureId) =>
     set({ activePanel: { kind: "structure", islandId, structureId } }),
+  openQuestScroll: (islandId) => set({ activePanel: { kind: "quests", islandId } }),
+  openMemoryForm: (islandId) => set({ activePanel: { kind: "memory-form", islandId } }),
   openSettings: () => set({ activePanel: { kind: "settings" } }),
   dismiss: () => set({ activePanel: null }),
   setHoveredIsland: (id) => set({ hoveredIslandId: id }),

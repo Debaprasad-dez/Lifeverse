@@ -45,6 +45,7 @@ import WeatherLayer from "@/components/canvas/effects/WeatherLayer";
 import HoverMarker from "@/components/canvas/HoverMarker";
 import ContextualUI from "@/components/canvas/ContextualUI";
 import GrowthFX from "@/components/canvas/effects/GrowthFX";
+import BeaconLayer from "@/components/canvas/effects/BeaconLayer";
 import { useUIStore } from "@/stores/uiStore";
 import { useCameraStore } from "@/stores/cameraStore";
 import { useGenesisStore } from "@/stores/genesisStore";
@@ -439,6 +440,7 @@ export default function WorldGraph() {
           <BridgeLayer state={state} />
           <AmbientLife state={state} built={data.islands} />
           <WeatherLayer state={state} built={data.islands} />
+          <BeaconLayer state={state} built={data.islands} />
           <GrowthFX anchors={pools.anchors} built={data.islands} />
         </>
       )}

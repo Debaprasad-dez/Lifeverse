@@ -13,6 +13,9 @@ import { playPop, playWhoosh } from "@/lib/sound";
 import { reducedMotion } from "@/lib/motion";
 import IslandPanel from "@/components/ui/panels/IslandPanel";
 import StructureSheet from "@/components/ui/panels/StructureSheet";
+import QuestScroll from "@/components/ui/panels/QuestScroll";
+import MemoryForm from "@/components/ui/panels/MemoryForm";
+import LandmarkSheet from "@/components/ui/panels/LandmarkSheet";
 
 interface ContextualUIProps {
   built: BuiltIsland[];
@@ -113,7 +116,8 @@ function PanelLayer({ built, anchors }: ContextualUIProps) {
 
   if (!panel || panel.kind === "settings") return null;
 
-  if (panel.kind === "island") {
+  // island-top anchored panels (island, quests, memory form)
+  if (panel.kind === "island" || panel.kind === "quests" || panel.kind === "memory-form") {
     const b = built.find((x) => x.island.id === panel.islandId);
     if (!b || !b.layout) return null;
     const [x, y, z] = b.island.position;
@@ -124,7 +128,9 @@ function PanelLayer({ built, anchors }: ContextualUIProps) {
         zIndexRange={[30, 10]}
         style={{ pointerEvents: "none" }}
       >
-        <IslandPanel island={b.island} layout={b.layout} />
+        {panel.kind === "island" && <IslandPanel island={b.island} layout={b.layout} />}
+        {panel.kind === "quests" && <QuestScroll island={b.island} layout={b.layout} />}
+        {panel.kind === "memory-form" && <MemoryForm island={b.island} layout={b.layout} />}
       </Html>
     );
   }
@@ -144,7 +150,11 @@ function PanelLayer({ built, anchors }: ContextualUIProps) {
       zIndexRange={[30, 10]}
       style={{ pointerEvents: "none" }}
     >
-      <StructureSheet anchor={anchor} layout={layout} />
+      {anchor.kind === "structure" ? (
+        <StructureSheet anchor={anchor} layout={layout} />
+      ) : (
+        <LandmarkSheet anchor={anchor} layout={layout} />
+      )}
     </Html>
   );
 }
