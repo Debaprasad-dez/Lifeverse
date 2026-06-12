@@ -6,6 +6,9 @@ import { PALETTE, SUN_DIRECTION } from "@/lib/constants";
  * Golden-hour rig: warm directional key (sun, ~35° elevation), cool sky
  * hemisphere fill with warm cloud-bounce from below — that bounce is what
  * keeps the sculpted underside readable when orbiting beneath the island.
+ * NOTE: drei <SoftShadows/> (PCSS) is incompatible with our customized
+ * toon materials (onBeforeCompile rim light) — N8AO + contact blobs carry
+ * the soft-shadow feel instead.
  */
 export default function Lighting() {
   const sunPos = SUN_DIRECTION.clone().multiplyScalar(190);
@@ -30,10 +33,9 @@ export default function Lighting() {
         shadow-bias={-0.0002}
         shadow-normalBias={0.6}
       />
-      <hemisphereLight
-        args={["#cfe9ff", "#ffe3bd", 0.9]}
-      />
-      <ambientLight color="#bdd9f2" intensity={0.14} />
+      {/* slightly stronger cool sky / warm ground split = filmic bounce */}
+      <hemisphereLight args={["#cde8ff", "#ffdfb4", 1.0]} />
+      <ambientLight color="#bdd9f2" intensity={0.1} />
     </>
   );
 }

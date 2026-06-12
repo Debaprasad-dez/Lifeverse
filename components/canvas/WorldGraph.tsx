@@ -46,6 +46,8 @@ import HoverMarker from "@/components/canvas/HoverMarker";
 import ContextualUI from "@/components/canvas/ContextualUI";
 import GrowthFX from "@/components/canvas/effects/GrowthFX";
 import BeaconLayer from "@/components/canvas/effects/BeaconLayer";
+import GrassField, { type GrassInstance } from "@/components/canvas/effects/GrassField";
+import ContactBlobs, { type BlobSpec } from "@/components/canvas/effects/ContactBlobs";
 import { useUIStore } from "@/stores/uiStore";
 import { useCameraStore } from "@/stores/cameraStore";
 import { useGenesisStore } from "@/stores/genesisStore";
@@ -67,8 +69,9 @@ interface Archipelago {
   stalactites: PoolInstance[];
   trunks: PoolInstance[];
   canopies: PoolInstance[];
-  grass: PoolInstance[];
+  grass: GrassInstance[];
   flowers: PoolInstance[];
+  blobs: BlobSpec[];
   waterfalls: { lip: Vector3; dir: Vector3; style: WaterfallStyle }[];
 }
 
@@ -95,6 +98,7 @@ function buildArchipelago(state: WorldState): Archipelago {
     canopies: [],
     grass: [],
     flowers: [],
+    blobs: [],
     waterfalls: [],
   };
 
@@ -105,11 +109,21 @@ function buildArchipelago(state: WorldState): Archipelago {
     const radius = island.locked ? 7.2 : islandRadius(island);
     const analytics = islandAnalytics(island);
 
+    // dirt paths run to each occupied structure slot
+    const islandSlots = core ? SLOT_MAPS[island.id as CoreKingdomId] : [];
+    const pathAnchors = island.locked
+      ? []
+      : island.structures.map((s) => {
+          const slot = islandSlots[s.slot % islandSlots.length];
+          return { t: slot.t, r: slot.r };
+        });
+
     const baseParams = {
       seed,
       radius,
       capHeight: layout?.capHeight ?? 1.5,
       depth: layout?.depth ?? 10,
+      paths: pathAnchors,
     };
     const geom = buildIsland({ ...baseParams, detail: island.locked ? 0.4 : 1 });
     const built: BuiltIsland = { island, geom, layout };
@@ -171,6 +185,10 @@ function buildArchipelago(state: WorldState): Archipelago {
         rotation: [0, t.rotationY, 0],
         scale: s,
       });
+      out.blobs.push({
+        position: [ix + t.x, iy + t.y + 0.07, iz + t.z],
+        radius: s * 1.7,
+      });
       const baseY = iy + t.y + s * 1.5;
       for (let j = 0; j < 3; j++) {
         const a = t.rotationY + j * 2.4 + blobRng() * 0.8;
@@ -195,16 +213,16 @@ function buildArchipelago(state: WorldState): Archipelago {
 
     const grassRng = mulberry32(seed ^ 0x6e55);
     for (const g of scatterOnCap(seed ^ 0x6e55, geom, {
-      count: Math.round(70 * flora),
-      minDistance: 0.8,
+      count: Math.round(110 * flora),
+      minDistance: 0.7,
       radialMax: 0.92,
       maxSlope: 1.1,
-      scaleRange: [0.95, 1.7],
+      scaleRange: [0.8, 1.5],
       avoid,
     })) {
       out.grass.push({
-        position: [ix + g.x, iy + g.y + 0.22 * g.scale, iz + g.z],
-        rotation: [0, g.rotationY, (grassRng() - 0.5) * 0.3],
+        position: [ix + g.x, iy + g.y + 0.02, iz + g.z],
+        rotY: g.rotationY,
         scale: g.scale,
         color: vitalityTint(
           grassRng() < 0.5 ? PALETTE.grassDeep : PALETTE.grassLight,
@@ -269,7 +287,7 @@ export default function WorldGraph() {
       state.islands
         .map(
           (i) =>
-            `${i.id}:${i.level}:${i.locked ? 1 : 0}:${i.ecosystem.flora.toFixed(2)}:${i.vitality.toFixed(2)}`
+            `${i.id}:${i.level}:${i.locked ? 1 : 0}:${i.ecosystem.flora.toFixed(2)}:${i.vitality.toFixed(2)}:${i.structures.map((s) => s.slot).join(".")}`
         )
         .join("|")
     : "";
@@ -281,6 +299,22 @@ export default function WorldGraph() {
     () => (state && data ? resolveStructures(state, data.geometries) : null),
     [state, data]
   );
+
+  // contact shadows: trees (from archipelago) + structures/landmarks (anchors)
+  const allBlobs = useMemo((): BlobSpec[] => {
+    if (!data || !pools) return [];
+    return [
+      ...data.blobs,
+      ...pools.anchors.map((a) => ({
+        position: [a.position[0], a.position[1] + 0.09, a.position[2]] as [
+          number,
+          number,
+          number,
+        ],
+        radius: a.radius * 1.25,
+      })),
+    ];
+  }, [data, pools]);
 
   const poolInstances = useMemo(() => {
     if (!pools) return null;
@@ -390,11 +424,7 @@ export default function WorldGraph() {
             castShadow
             receiveShadow
           />
-          <InstancedPool
-            geometry={GEOS.grassTuft}
-            material={getToonMaterial("grass", { flatShading: true })}
-            instances={data.grass}
-          />
+          <GrassField instances={data.grass} />
           <InstancedPool
             geometry={GEOS.flower}
             material={getToonMaterial("flower", {
@@ -430,6 +460,7 @@ export default function WorldGraph() {
             />
           ))}
 
+          <ContactBlobs blobs={allBlobs} />
           <HoverMarker anchors={pools.anchors} />
           <ContextualUI built={data.islands} anchors={pools.anchors} />
 

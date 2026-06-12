@@ -90,6 +90,7 @@ interface WaterfallProps {
 /** Ribbon of falling water from a rim notch down into the cloud sea. */
 export default function Waterfall({ lip, dir, style = "water" }: WaterfallProps) {
   const splashGroup = useRef<Group>(null);
+  const mistRef = useRef<Group>(null);
 
   const { geometry, material, splashMaterial, splashGeometry, basePos } = useMemo(() => {
     const drop = lip.y - (WORLD.cloudSeaY + 3.2);
@@ -162,12 +163,21 @@ export default function Waterfall({ lip, dir, style = "water" }: WaterfallProps)
 
   useFrame((state, delta) => {
     material.uniforms.uTime.value += delta;
+    const t = state.clock.elapsedTime;
     const g = splashGroup.current;
     if (g) {
-      const t = state.clock.elapsedTime;
       g.children.forEach((child, i) => {
         const pulse = 1 + 0.18 * Math.sin(t * (1.6 + i * 0.5) + i * 2.1);
         child.scale.setScalar((3.2 + i * 1.3) * pulse);
+        child.quaternion.copy(state.camera.quaternion);
+      });
+    }
+    const m = mistRef.current;
+    if (m) {
+      m.children.forEach((child, i) => {
+        const pulse = 1 + 0.25 * Math.sin(t * (0.9 + i * 0.4) + i * 2.8);
+        child.scale.setScalar((1.6 + i * 0.8) * pulse);
+        child.position.y = 0.4 + i * 0.35 + Math.sin(t * 0.7 + i) * 0.2;
         child.quaternion.copy(state.camera.quaternion);
       });
     }
@@ -176,6 +186,17 @@ export default function Waterfall({ lip, dir, style = "water" }: WaterfallProps)
   return (
     <group>
       <mesh geometry={geometry} material={material} frustumCulled={false} renderOrder={5} />
+      {/* mist curling at the lip where the water breaks over the rim */}
+      <group ref={mistRef} position={[lip.x + dir.x * 1.2, lip.y, lip.z + dir.z * 1.2]}>
+        {[0, 1].map((i) => (
+          <mesh
+            key={i}
+            geometry={splashGeometry}
+            material={splashMaterial}
+            position={[(i - 0.5) * 1.1, 0.4, 0]}
+          />
+        ))}
+      </group>
       <group ref={splashGroup} position={basePos}>
         {[0, 1, 2].map((i) => (
           <mesh

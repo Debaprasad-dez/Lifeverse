@@ -159,6 +159,47 @@ export function resolveStructures(
         glowMul: (0.8 + analytics.glowMul) * glowBoost,
         dimBody,
       });
+
+      // yard props — lived-in detail around each structure. Their own scale
+      // (clamped) so lamps don't grow into giants beside large halls.
+      const props: Part[] = [];
+      const h = hash01(structure.id + "props");
+      if (island.evolutionStage >= 2 && h < 0.8) {
+        props.push(
+          { kind: "cylinder", offset: [1.45, 0.62, 0.45], scale: [0.09, 1.24, 0.09], color: "#6b6259" },
+          { kind: "sphere", offset: [1.45, 1.32, 0.45], scale: [0.22, 0.26, 0.22], color: layout.palette.glow, glow: true }
+        );
+      }
+      if (h > 0.35) {
+        props.push({
+          kind: "box",
+          offset: [-1.25, 0.18, 0.85],
+          scale: [0.38, 0.36, 0.38],
+          rotY: h * 60,
+          color: "#a98a64",
+        });
+        if (h > 0.7) {
+          props.push({
+            kind: "box",
+            offset: [-1.05, 0.5, 0.7],
+            scale: [0.3, 0.28, 0.3],
+            rotY: h * 110,
+            color: "#bb9a72",
+          });
+        }
+      }
+      if (props.length > 0) {
+        pushParts(props, {
+          body,
+          glow,
+          anchorIdx: anchors.length - 1,
+          origin: [island.position[0] + lx, island.position[1] + ly, island.position[2] + lz],
+          yaw,
+          scale: Math.min(1.35, Math.max(0.9, structScale)),
+          glowMul: 1.3,
+          dimBody,
+        });
+      }
     }
   }
 

@@ -18,6 +18,10 @@ export interface IslandParams {
   angularSegments?: number;
   /** LOD multiplier (1 full, 0.5 mid, 0.25 silhouette) applied to all rows. */
   detail?: number;
+  /** Structure slot anchors (azimuth deg, radial fraction) — worn dirt
+   *  paths run from the island center out to each. Resolved against this
+   *  island's own footprint so they land exactly at structure bases. */
+  paths?: { t: number; r: number }[];
 }
 
 export interface IslandGeometry {
@@ -38,8 +42,16 @@ const BASE_CAP_ROWS = 12;
 const BASE_CLIFF_ROWS = 8;
 const BASE_UNDER_ROWS = 14;
 
+/** Distance from point to the segment (0,0)→(px,pz). */
+function distToSpoke(x: number, z: number, px: number, pz: number): number {
+  const lenSq = px * px + pz * pz;
+  if (lenSq < 1e-6) return Math.hypot(x, z);
+  const t = clamp((x * px + z * pz) / lenSq, 0, 1);
+  return Math.hypot(x - px * t, z - pz * t);
+}
+
 export function buildIsland(params: IslandParams): IslandGeometry {
-  const { seed, radius, capHeight, depth, detail = 1 } = params;
+  const { seed, radius, capHeight, depth, detail = 1, paths = [] } = params;
   const A = Math.max(16, Math.round((params.angularSegments ?? 96) * detail));
   const CAP_ROWS = Math.max(4, Math.round(BASE_CAP_ROWS * detail));
   const CLIFF_ROWS = Math.max(3, Math.round(BASE_CLIFF_ROWS * detail));
@@ -75,13 +87,31 @@ export function buildIsland(params: IslandParams): IslandGeometry {
     return dome + hills + micro + lip;
   };
 
+  // resolve path endpoints against this footprint (slot.t deg → local XZ)
+  const pathPts = paths.map((p) => {
+    const th = (p.t * Math.PI) / 180;
+    const f = footprintAt(th) * p.r;
+    return { x: Math.cos(th) * f, z: Math.sin(th) * f };
+  });
+
   const cliffEndY = -depth * 0.4;
   const tipY = -depth * (1 + 0.1 * (rng() - 0.5));
 
+  // domain warp gives the cliff noise that eroded, non-procedural look
+  const cliffWarp = (theta: number, t: number): number =>
+    fbm2(noise, Math.cos(theta) * 1.4 + 9.1, Math.sin(theta) * 1.4 - t * 1.1, 2);
+
+  /** Sedimentary strata: quantized ledges, offset by the warp field. */
+  const strataAt = (theta: number, t: number): number =>
+    Math.sin(t * 17 + cliffWarp(theta, t) * 4.5 + Math.cos(theta) * 1.3);
+
   const cliffRadiusAt = (theta: number, t: number): number => {
+    const w = cliffWarp(theta, t);
     const striate =
-      0.09 * fbm2(noise, Math.cos(theta) * 3.1 + t * 1.7, Math.sin(theta) * 3.1 - t * 2.3, 3);
-    return footprintAt(theta) * (1 + 0.05 * Math.sin(t * Math.PI) - 0.08 * t + striate);
+      0.09 *
+      fbm2(noise, Math.cos(theta) * 3.1 + t * 1.7 + w * 1.6, Math.sin(theta) * 3.1 - t * 2.3 + w * 1.6, 3);
+    const ledge = smoothstep(0.45, 0.95, strataAt(theta, t)) * 0.04;
+    return footprintAt(theta) * (1 + 0.05 * Math.sin(t * Math.PI) - 0.08 * t + striate + ledge);
   };
 
   const undersideAt = (theta: number, u: number): Vector3 => {
@@ -109,6 +139,8 @@ export function buildIsland(params: IslandParams): IslandGeometry {
   const rockUnder = new Color(PALETTE.rockUnder);
   const rockTip = new Color(PALETTE.rockTip);
   const mystic = new Color(PALETTE.mystic);
+  const dirt = new Color("#b0916a");
+  const dirtDeep = new Color("#9a7c58");
   const tmp = new Color();
   const tmp2 = new Color();
 
@@ -137,11 +169,36 @@ export function buildIsland(params: IslandParams): IslandGeometry {
 
         const patch = fbm2(noise, x * 0.16 + 31, z * 0.16 - 17, 3) * 0.5 + 0.5;
         tmp.copy(grassDeep).lerp(grassLight, patch);
+
+        // worn dirt paths: center → structure anchors, noise-frayed edges
+        if (pathPts.length > 0 && s < 0.97) {
+          let dMin = Infinity;
+          for (const p of pathPts) {
+            const d = distToSpoke(x, z, p.x, p.z);
+            if (d < dMin) dMin = d;
+          }
+          const fray = fbm2(noise, x * 0.55 + 13, z * 0.55 - 8, 2);
+          const width = 0.8 + fray * 0.35;
+          const k = 1 - smoothstep(width * 0.45, width, dMin);
+          if (k > 0) {
+            tmp.lerp(tmp2.copy(dirt).lerp(dirtDeep, patch * 0.6), k * 0.8);
+          }
+        }
+
         // dirt ring where grass folds over the rim
         tmp.lerp(tmp2.copy(cliffWarm), smoothstep(0.93, 1, s) * 0.55);
         // valley AO
         const hillN = fbm2(noise, x * 0.085 + offX, z * 0.085 + offZ, 4);
         tmp.multiplyScalar(1 - Math.max(0, -hillN) * 0.22);
+        // cavity AO bake: pits darken, knolls catch light (film grounding)
+        const dd = 1.15;
+        const avgH =
+          (capHeightAt(x + dd, z) +
+            capHeightAt(x - dd, z) +
+            capHeightAt(x, z + dd) +
+            capHeightAt(x, z - dd)) /
+          4;
+        tmp.multiplyScalar(clamp(1 + (y - avgH) * 0.5, 0.76, 1.07));
         writeVertex(x, y, z, tmp);
       } else if (row < CAP_ROWS + CLIFF_ROWS) {
         // ---- cliff ring ----
@@ -152,12 +209,22 @@ export function buildIsland(params: IslandParams): IslandGeometry {
         const edgeY = capHeightAt(Math.cos(theta) * footprintAt(theta) * 0.999, Math.sin(theta) * footprintAt(theta) * 0.999);
         const y = lerp(edgeY - 0.12, cliffEndY, Math.pow(t, 1.25));
 
+        const w = cliffWarp(theta, t);
         const band =
-          fbm2(noise, Math.cos(theta) * 3.1 + t * 1.7, Math.sin(theta) * 3.1 - t * 2.3, 3) * 0.5 +
+          fbm2(
+            noise,
+            Math.cos(theta) * 3.1 + t * 1.7 + w * 1.6,
+            Math.sin(theta) * 3.1 - t * 2.3 + w * 1.6,
+            3
+          ) *
+            0.5 +
           0.5;
         tmp.copy(cliffDeep).lerp(cliffWarm, band);
-        // occlusion under the grass overhang
-        tmp.multiplyScalar(1 - (1 - smoothstep(0, 0.35, t)) * 0.25);
+        // sedimentary strata: alternate bands shade darker, ledges lighter
+        const strata = strataAt(theta, t);
+        tmp.multiplyScalar(0.96 + strata * 0.055);
+        // contact occlusion under the grass overhang (deeper = filmic seam)
+        tmp.multiplyScalar(1 - (1 - smoothstep(0, 0.38, t)) * 0.34);
         writeVertex(x, y, z, tmp);
       } else {
         // ---- sculpted underside cone ----
