@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import {
   CanvasTexture,
@@ -59,8 +59,17 @@ varying vec3 vColor;
 
 void main() {
   vUv = uv;
-  vColor = instanceColor;
-  vec4 world = instanceMatrix * vec4(position, 1.0);
+  // instanceColor only exists once setColorAt ran — guard or the first
+  // compile (pre-effect) references an undeclared attribute and dies
+  #ifdef USE_INSTANCING_COLOR
+    vColor = instanceColor;
+  #else
+    vColor = vec3(0.55, 0.72, 0.35);
+  #endif
+  vec4 world = vec4(position, 1.0);
+  #ifdef USE_INSTANCING
+    world = instanceMatrix * world;
+  #endif
 
   // wind: large slow gust + small flutter, bending from the root up
   float bend = pow(uv.y, 1.8);
@@ -126,7 +135,7 @@ export default function GrassField({ instances }: GrassFieldProps) {
     return { geometry, material };
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const place = (mesh: InstancedMesh | null, extraYaw: number): void => {
       if (!mesh) return;
       instances.forEach((g, i) => {
