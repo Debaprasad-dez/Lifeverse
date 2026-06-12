@@ -7,6 +7,8 @@ export interface Settings {
   quality: "auto" | "high" | "medium" | "low";
   sound: boolean;
   reducedMotion: "auto" | "on" | "off";
+  /** First model tried in the OpenRouter fallback chain. */
+  preferredModel: string;
 }
 
 export interface Flags {
@@ -24,6 +26,7 @@ export const DEFAULT_SETTINGS: Settings = {
   quality: "auto",
   sound: true,
   reducedMotion: "auto",
+  preferredModel: "google/gemma-4-26b-a4b-it:free",
 };
 
 export const DEFAULT_FLAGS: Flags = {

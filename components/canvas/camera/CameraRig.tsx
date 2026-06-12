@@ -8,7 +8,9 @@ import { CAMERA } from "@/lib/constants";
 import { clamp } from "@/lib/noise";
 import { useCameraStore, type CameraMode } from "@/stores/cameraStore";
 import { useWorldStore } from "@/stores/worldStore";
+import { useUIStore } from "@/stores/uiStore";
 import { islandCenter, KINGDOM_ORDER } from "@/engine/resolver/layout";
+import { reducedMotion } from "@/lib/motion";
 
 const TWO_PI = Math.PI * 2;
 
@@ -18,14 +20,27 @@ interface Spherical {
   polar: number;
 }
 
+const INSPECT_CLAMPS = {
+  radius: [5, 18] as const,
+  polar: [(15 * Math.PI) / 180, (110 * Math.PI) / 180] as const,
+};
+
 function clampsFor(mode: CameraMode): {
   radius: readonly [number, number];
   polar: readonly [number, number];
 } {
-  return mode === "ORBIT_ISLAND" || mode === "INSPECT"
-    ? CAMERA.island
-    : CAMERA.world;
+  if (mode === "INSPECT") return INSPECT_CLAMPS;
+  return mode === "ORBIT_ISLAND" ? CAMERA.island : CAMERA.world;
 }
+
+const FLIGHT_DEST: Record<
+  "island" | "world" | "inspect",
+  { radius: number; polar: number; mode: CameraMode }
+> = {
+  island: { radius: 22, polar: (66 * Math.PI) / 180, mode: "ORBIT_ISLAND" },
+  world: { radius: 112, polar: (58 * Math.PI) / 180, mode: "ORBIT_WORLD" },
+  inspect: { radius: 9, polar: (72 * Math.PI) / 180, mode: "INSPECT" },
+};
 
 /**
  * Custom damped spherical-coordinate controller — NOT stock OrbitControls.
@@ -53,6 +68,7 @@ export default function CameraRig() {
     movedAz: 0,
     movedPol: 0,
     lastT: 0,
+    totalPx: 0,
   });
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef({ active: false, dist: 0 });
@@ -67,7 +83,9 @@ export default function CameraRig() {
       vel.current.az = 0;
       vel.current.pol = 0;
       vel.current.zoom = 0;
-      store.setMode(store.flight?.kind === "island" ? "ORBIT_ISLAND" : "ORBIT_WORLD");
+      // interrupted inspect flights settle into island orbit, not INSPECT
+      const kind = store.flight?.kind;
+      store.setMode(kind === "world" ? "ORBIT_WORLD" : "ORBIT_ISLAND");
     },
     []
   );
@@ -106,12 +124,16 @@ export default function CameraRig() {
       const dest = new Vector3(...req.target);
       modeTarget.current.copy(dest);
 
-      const destRadius = req.kind === "island" ? 22 : 112;
-      const destPolar = req.kind === "island" ? (66 * Math.PI) / 180 : (58 * Math.PI) / 180;
-      const travel = t.distanceTo(dest) + Math.abs(s.radius - destRadius);
-      const dur = clamp(0.9 + travel / 110, 0.9, 2.4);
+      const destSpec = FLIGHT_DEST[req.kind];
+      const travel = t.distanceTo(dest) + Math.abs(s.radius - destSpec.radius);
+      const snap = reducedMotion();
+      const dur = snap
+        ? 0.05 // reduced motion: effectively a crossfade, not a flight
+        : req.kind === "inspect"
+          ? clamp(0.6 + travel / 160, 0.6, 1.3)
+          : clamp(0.9 + travel / 110, 0.9, 2.4);
       // pull up & out, glide, then descend — the raised arc
-      const peak = Math.max(s.radius, destRadius) + travel * 0.3;
+      const peak = Math.max(s.radius, destSpec.radius) + (snap ? 0 : travel * 0.3);
 
       vel.current.az = 0;
       vel.current.pol = 0;
@@ -120,17 +142,17 @@ export default function CameraRig() {
       const tl = gsap.timeline({
         onComplete: () => {
           timeline.current = null;
-          useCameraStore
-            .getState()
-            .setMode(req.kind === "island" ? "ORBIT_ISLAND" : "ORBIT_WORLD");
+          useCameraStore.getState().setMode(destSpec.mode);
         },
       });
       tl.to(t, { x: dest.x, y: dest.y, z: dest.z, duration: dur, ease: "power3.inOut" }, 0);
-      tl.to(s, { polar: destPolar, duration: dur, ease: "power3.inOut" }, 0);
+      tl.to(s, { polar: destSpec.polar, duration: dur, ease: "power3.inOut" }, 0);
       tl.to(s, { radius: peak, duration: dur * 0.48, ease: "power2.inOut" }, 0);
-      tl.to(s, { radius: destRadius, duration: dur * 0.52, ease: "power3.out" }, dur * 0.48);
-      tl.to(fov.current, { value: CAMERA.fovBreathe, duration: dur * 0.45, ease: "sine.in" }, 0);
-      tl.to(fov.current, { value: CAMERA.fov, duration: dur * 0.55, ease: "sine.out" }, dur * 0.45);
+      tl.to(s, { radius: destSpec.radius, duration: dur * 0.52, ease: "power3.out" }, dur * 0.48);
+      if (!snap) {
+        tl.to(fov.current, { value: CAMERA.fovBreathe, duration: dur * 0.45, ease: "sine.in" }, 0);
+        tl.to(fov.current, { value: CAMERA.fov, duration: dur * 0.55, ease: "sine.out" }, dur * 0.45);
+      }
       timeline.current = tl;
     });
     return () => {
@@ -156,6 +178,7 @@ export default function CameraRig() {
         drag.current.movedAz = 0;
         drag.current.movedPol = 0;
         drag.current.lastT = performance.now();
+        drag.current.totalPx = 0;
         vel.current.az = 0;
         vel.current.pol = 0;
       } else if (pointers.current.size === 2) {
@@ -184,6 +207,8 @@ export default function CameraRig() {
 
       if (drag.current.active) {
         const k = 0.0042;
+        drag.current.totalPx +=
+          Math.abs(e.clientX - drag.current.lastX) + Math.abs(e.clientY - drag.current.lastY);
         const dAz = -(e.clientX - drag.current.lastX) * k;
         const dPol = -(e.clientY - drag.current.lastY) * k;
         sph.current.azimuth += dAz;
@@ -201,6 +226,7 @@ export default function CameraRig() {
       if (pointers.current.size < 2) pinch.current.active = false;
       if (pointers.current.size === 0 && drag.current.active) {
         drag.current.active = false;
+        useUIStore.getState().setLastDragDistance(drag.current.totalPx);
         // release inertia from the last move, faded by time since it happened
         const age = (performance.now() - drag.current.lastT) / 1000;
         const carry = Math.max(0, 1 - age * 8) * 36;
@@ -215,24 +241,49 @@ export default function CameraRig() {
       vel.current.zoom += e.deltaY * 0.0011;
     };
 
+    const flyTo = (id: string): void => {
+      const island = useWorldStore.getState().state?.islands.find((i) => i.id === id);
+      if (island && !island.locked) {
+        useCameraStore.getState().flyToIsland(id, islandCenter(island));
+      }
+    };
+
     const onKeyDown = (e: KeyboardEvent): void => {
       const store = useCameraStore.getState();
+      const ui = useUIStore.getState();
 
       if (e.key === "Escape") {
-        if (store.mode === "ORBIT_ISLAND" || store.mode === "INSPECT") {
+        // cascade: INSPECT → island orbit → world orbit
+        if (store.mode === "INSPECT" && store.focusedIslandId) {
+          flyTo(store.focusedIslandId);
+        } else if (store.mode === "ORBIT_ISLAND") {
           store.flyToWorld();
         }
+        ui.setKbFocus(null);
+        return;
+      }
+
+      // Tab cycles keyboard focus across unlocked kingdoms; Enter flies
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const order = KINGDOM_ORDER;
+        const current = ui.kbFocusIslandId;
+        const idx = current ? order.indexOf(current as (typeof order)[number]) : -1;
+        const step = e.shiftKey ? -1 : 1;
+        const next = order[(idx + step + order.length) % order.length];
+        ui.setKbFocus(next);
+        return;
+      }
+      if (e.key === "Enter" && ui.kbFocusIslandId) {
+        flyTo(ui.kbFocusIslandId);
+        ui.setKbFocus(null);
         return;
       }
 
       // 1–7 fly straight to each core kingdom
       const digit = Number(e.key);
       if (digit >= 1 && digit <= KINGDOM_ORDER.length) {
-        const id = KINGDOM_ORDER[digit - 1];
-        const island = useWorldStore.getState().state?.islands.find((i) => i.id === id);
-        if (island && !island.locked) {
-          store.flyToIsland(id, islandCenter(island));
-        }
+        flyTo(KINGDOM_ORDER[digit - 1]);
       }
     };
 
@@ -265,6 +316,8 @@ export default function CameraRig() {
       if (!drag.current.active) {
         s.azimuth += vel.current.az * dt;
         s.polar += vel.current.pol * dt;
+        // gentle auto-orbit while a structure sheet is open
+        if (mode === "INSPECT") s.azimuth += dt * 0.05;
       }
       s.radius *= 1 + vel.current.zoom * dt * 14;
 

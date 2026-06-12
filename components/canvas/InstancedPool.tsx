@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef } from "react";
+import type { ThreeEvent } from "@react-three/fiber";
 import {
   BufferGeometry,
   Color,
@@ -25,6 +26,9 @@ interface InstancedPoolProps {
   instances: PoolInstance[];
   castShadow?: boolean;
   receiveShadow?: boolean;
+  onPointerOver?: (e: ThreeEvent<PointerEvent>) => void;
+  onPointerOut?: (e: ThreeEvent<PointerEvent>) => void;
+  onClick?: (e: ThreeEvent<MouseEvent>) => void;
 }
 
 const m = new Matrix4();
@@ -40,6 +44,9 @@ export default function InstancedPool({
   instances,
   castShadow,
   receiveShadow,
+  onPointerOver,
+  onPointerOut,
+  onClick,
 }: InstancedPoolProps) {
   const ref = useRef<InstancedMesh>(null);
 
@@ -73,6 +80,9 @@ export default function InstancedPool({
       args={[geometry, material, instances.length]}
       castShadow={castShadow}
       receiveShadow={receiveShadow}
+      onPointerOver={onPointerOver}
+      onPointerOut={onPointerOut}
+      onClick={onClick}
     />
   );
 }

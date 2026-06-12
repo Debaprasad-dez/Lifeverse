@@ -11,6 +11,8 @@ import Lighting from "@/components/canvas/Lighting";
 import PostFX from "@/components/canvas/PostFX";
 import WorldGraph from "@/components/canvas/WorldGraph";
 import CameraRig from "@/components/canvas/camera/CameraRig";
+import { dismissContextual } from "@/components/canvas/ContextualUI";
+import { useUIStore } from "@/stores/uiStore";
 
 const initialPosition: [number, number, number] = (() => {
   const { radius, azimuth, polar } = CAMERA.initial;
@@ -42,6 +44,12 @@ export default function WorldCanvas() {
       }}
       gl={{ antialias: true, powerPreference: "high-performance" }}
       className="!fixed !inset-0"
+      onPointerMissed={(e) => {
+        // empty-sky CLICK dismisses; orbit drags must not
+        if (e.type !== "click") return;
+        if (useUIStore.getState().lastDragDistance > 6) return;
+        dismissContextual();
+      }}
     >
       <Suspense fallback={null}>
         <SkyDome />

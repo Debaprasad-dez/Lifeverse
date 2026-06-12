@@ -7,6 +7,7 @@ import type { IslandGeometry } from "@/engine/generation/island";
 import { islandCenter, type KingdomLayout } from "@/engine/resolver/layout";
 import { getToonMaterial } from "@/engine/materials/toon";
 import { useCameraStore } from "@/stores/cameraStore";
+import { useUIStore } from "@/stores/uiStore";
 import IslandLabel from "@/components/canvas/IslandLabel";
 
 interface KingdomIslandProps {
@@ -42,6 +43,19 @@ export default function KingdomIsland({
     useCameraStore.getState().flyToIsland(island.id, islandCenter(island));
   };
 
+  const onPointerOver = (e: ThreeEvent<PointerEvent>): void => {
+    if (island.locked) return;
+    e.stopPropagation();
+    useUIStore.getState().setHoveredIsland(island.id);
+    document.body.style.cursor = "pointer";
+  };
+  const onPointerOut = (): void => {
+    if (useUIStore.getState().hoveredIslandId === island.id) {
+      useUIStore.getState().setHoveredIsland(null);
+      document.body.style.cursor = "";
+    }
+  };
+
   // label floats off the rim that faces the world center, so it reads
   // from the default world orbit (degenerate at the origin → fixed angle)
   let labelPos: [number, number, number] | null = null;
@@ -58,7 +72,12 @@ export default function KingdomIsland({
 
   return (
     <group>
-      <group position={island.position} onDoubleClick={onDoubleClick}>
+      <group
+        position={island.position}
+        onDoubleClick={onDoubleClick}
+        onPointerOver={onPointerOver}
+        onPointerOut={onPointerOut}
+      >
         {geomMid && geomLow ? (
           <Detailed distances={[0, 110, 190]}>
             <mesh
@@ -81,6 +100,7 @@ export default function KingdomIsland({
       </group>
       {layout && labelPos && (
         <IslandLabel
+          islandId={island.id}
           text={layout.label}
           position={labelPos}
           plateColor={layout.accent}

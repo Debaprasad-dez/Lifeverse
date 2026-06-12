@@ -42,6 +42,12 @@ import BridgeLayer from "@/components/canvas/effects/BridgeLayer";
 import Waterfall, { type WaterfallStyle } from "@/components/canvas/effects/Waterfall";
 import AmbientLife from "@/components/canvas/effects/AmbientLife";
 import WeatherLayer from "@/components/canvas/effects/WeatherLayer";
+import HoverMarker from "@/components/canvas/HoverMarker";
+import ContextualUI from "@/components/canvas/ContextualUI";
+import { useUIStore } from "@/stores/uiStore";
+import { useCameraStore } from "@/stores/cameraStore";
+import { playChime } from "@/lib/sound";
+import type { ThreeEvent } from "@react-three/fiber";
 import { MeshBasicMaterial } from "three";
 
 export interface BuiltIsland {
@@ -268,8 +274,9 @@ export default function WorldGraph() {
 
   const poolInstances = useMemo(() => {
     if (!pools) return null;
-    const toPool = (src: typeof pools.body): Record<PrimKind, PoolInstance[]> => {
+    const toPool = (src: typeof pools.body) => {
       const map = {} as Record<PrimKind, PoolInstance[]>;
+      const anchorIdx = {} as Record<PrimKind, number[]>;
       for (const kind of PRIM_KINDS) {
         map[kind] = src[kind].map((p) => ({
           position: p.position,
@@ -277,13 +284,54 @@ export default function WorldGraph() {
           scale: p.scale,
           color: p.color,
         }));
+        anchorIdx[kind] = src[kind].map((p) => p.anchorIdx);
       }
-      return map;
+      return { map, anchorIdx };
     };
-    return { body: toPool(pools.body), glow: toPool(pools.glow) };
+    const body = toPool(pools.body);
+    const glow = toPool(pools.glow);
+    return {
+      body: body.map,
+      glow: glow.map,
+      bodyAnchorIdx: body.anchorIdx,
+      glowAnchorIdx: glow.anchorIdx,
+    };
   }, [pools]);
 
-  if (!state || !data || !poolInstances) return null;
+  if (!state || !data || !poolInstances || !pools) return null;
+
+  const anchors = pools.anchors;
+  const hoverHandler =
+    (idxMap: number[]) =>
+    (e: ThreeEvent<PointerEvent>): void => {
+      if (e.instanceId === undefined) return;
+      e.stopPropagation();
+      const a = anchors[idxMap[e.instanceId]];
+      if (a) {
+        useUIStore.getState().setHoveredStructure(a.structureId);
+        document.body.style.cursor = "pointer";
+      }
+    };
+  const unhoverHandler = (): void => {
+    useUIStore.getState().setHoveredStructure(null);
+    document.body.style.cursor = "";
+  };
+  const clickHandler =
+    (idxMap: number[]) =>
+    (e: ThreeEvent<MouseEvent>): void => {
+      if (e.instanceId === undefined) return;
+      e.stopPropagation();
+      const a = anchors[idxMap[e.instanceId]];
+      if (!a) return;
+      playChime();
+      useCameraStore
+        .getState()
+        .inspectStructure(a.islandId, a.structureId, [
+          a.position[0],
+          a.position[1] + a.height * 0.5,
+          a.position[2],
+        ]);
+    };
 
   const rockMat = getToonMaterial("stalactite", {
     color: PALETTE.rockUnder,
@@ -343,6 +391,9 @@ export default function WorldGraph() {
           instances={poolInstances.body[kind]}
           castShadow
           receiveShadow
+          onPointerOver={hoverHandler(poolInstances.bodyAnchorIdx[kind])}
+          onPointerOut={unhoverHandler}
+          onClick={clickHandler(poolInstances.bodyAnchorIdx[kind])}
         />
       ))}
       {PRIM_KINDS.map((kind) => (
@@ -351,8 +402,14 @@ export default function WorldGraph() {
           geometry={GEOS[kind]}
           material={glowMaterial}
           instances={poolInstances.glow[kind]}
+          onPointerOver={hoverHandler(poolInstances.glowAnchorIdx[kind])}
+          onPointerOut={unhoverHandler}
+          onClick={clickHandler(poolInstances.glowAnchorIdx[kind])}
         />
       ))}
+
+      <HoverMarker anchors={pools?.anchors ?? []} />
+      <ContextualUI built={data.islands} anchors={pools?.anchors ?? []} />
 
       {data.waterfalls.map((w, i) => (
         <Waterfall key={i} lip={w.lip} dir={w.dir} style={w.style} />

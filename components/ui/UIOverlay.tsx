@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useUIStore } from "@/stores/uiStore";
+import SettingsSheet from "@/components/ui/panels/SettingsSheet";
+import Onboarding from "@/components/ui/Onboarding";
 
 /**
  * Persistent chrome budget (hard rule): one brand chip, one time/compass
@@ -9,29 +12,40 @@ import { AnimatePresence, motion } from "framer-motion";
  * Container swallows no pointer events — the world stays interactive.
  */
 export default function UIOverlay() {
+  const settingsOpen = useUIStore((s) => s.activePanel?.kind === "settings");
   return (
     <div className="pointer-events-none fixed inset-0 z-10 font-body">
       <BrandChip />
       <TimeCompass />
       <CompanionOrb />
       <Hints />
+      <AnimatePresence>{settingsOpen && <SettingsSheet />}</AnimatePresence>
+      <Onboarding />
     </div>
   );
 }
 
 function BrandChip() {
   return (
-    <motion.div
+    <motion.button
+      type="button"
       initial={{ opacity: 0, y: -12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.7, delay: 0.3, ease: "easeOut" }}
-      className="glass pointer-events-auto absolute left-4 top-4 flex items-center gap-2 px-3.5 py-2"
+      whileTap={{ scale: 0.95 }}
+      className="glass pointer-events-auto absolute left-4 top-4 flex cursor-pointer items-center gap-2 px-3.5 py-2"
+      title="Settings"
+      onClick={() => {
+        const ui = useUIStore.getState();
+        if (ui.activePanel?.kind === "settings") ui.dismiss();
+        else ui.openSettings();
+      }}
     >
       <span className="block h-3.5 w-3.5 rounded-full bg-gradient-to-br from-aura via-mystic to-gold shadow-[0_0_10px_rgba(79,195,247,0.8)]" />
       <span className="font-heading text-sm font-semibold tracking-wide text-ink">
         LifeVerse
       </span>
-    </motion.div>
+    </motion.button>
   );
 }
 

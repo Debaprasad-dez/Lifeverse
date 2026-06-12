@@ -26,13 +26,32 @@ export interface PartInstance {
   scale: [number, number, number];
   /** Color may exceed 1.0 (HDR) — glowing windows feed Bloom directly. */
   color: string | Color;
+  /** Index into ResolvedStructures.anchors — instanceId → structure picking. */
+  anchorIdx: number;
 }
 
 export type PartPools = Record<PrimKind, PartInstance[]>;
 
+/** Interaction/UI anchor for one placed structure. */
+export interface StructureAnchor {
+  islandId: KingdomId;
+  structureId: string;
+  type: string;
+  label: string;
+  description: string;
+  growth: number;
+  state: string;
+  /** World position at the structure's base. */
+  position: [number, number, number];
+  /** Hit-proxy radius (also sheet anchor height hint). */
+  radius: number;
+  height: number;
+}
+
 export interface ResolvedStructures {
   body: PartPools;
   glow: PartPools;
+  anchors: StructureAnchor[];
 }
 
 const emptyPools = (): PartPools => ({
@@ -73,6 +92,7 @@ export function resolveStructures(
 ): ResolvedStructures {
   const body = emptyPools();
   const glow = emptyPools();
+  const anchors: StructureAnchor[] = [];
 
   for (const island of state.islands) {
     if (island.locked) continue;
@@ -107,6 +127,23 @@ export function resolveStructures(
         island.evolutionStage
       );
 
+      let top = 0;
+      for (const part of parts) {
+        top = Math.max(top, (part.offset[1] + part.scale[1] / 2) * structScale);
+      }
+      anchors.push({
+        islandId: island.id,
+        structureId: structure.id,
+        type: structure.type,
+        label: structure.meaning.label,
+        description: structure.meaning.description,
+        growth: structure.growth,
+        state: structure.state,
+        position: [island.position[0] + lx, island.position[1] + ly, island.position[2] + lz],
+        radius: Math.max(1.3, structScale * 1.5),
+        height: top,
+      });
+
       for (const part of parts) {
         const [ox, oy, oz] = part.offset;
         const rx = (ox * cosY - oz * sinY) * structScale;
@@ -124,6 +161,7 @@ export function resolveStructures(
             part.scale[2] * structScale,
           ],
           color: part.color,
+          anchorIdx: anchors.length - 1,
         };
 
         if (part.glow) {
@@ -144,5 +182,5 @@ export function resolveStructures(
     }
   }
 
-  return { body, glow };
+  return { body, glow, anchors };
 }
