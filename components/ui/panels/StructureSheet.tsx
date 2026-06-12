@@ -3,7 +3,18 @@
 import { motion } from "framer-motion";
 import type { StructureAnchor } from "@/engine/resolver/resolve";
 import type { KingdomLayout } from "@/engine/resolver/layout";
+import { islandCenter } from "@/engine/resolver/layout";
+import { useCameraStore } from "@/stores/cameraStore";
+import { useWorldStore } from "@/stores/worldStore";
+import { useUIStore } from "@/stores/uiStore";
 import Tube from "./Tube";
+
+/** Close the sheet and glide back out to island orbit. */
+function closeAndBack(islandId: string): void {
+  useUIStore.getState().dismiss();
+  const island = useWorldStore.getState().state?.islands.find((i) => i.id === islandId);
+  if (island) useCameraStore.getState().flyToIsland(island.id, islandCenter(island));
+}
 
 const STATE_LABEL: Record<string, string> = {
   seed: "Seedling",
@@ -34,12 +45,23 @@ export default function StructureSheet({ anchor, layout }: StructureSheetProps) 
       transition={{ type: "spring", stiffness: 380, damping: 28 }}
       className="glass-panel pointer-events-auto w-64 px-5 py-4 select-none"
     >
-      <span
-        className="font-label text-[0.58rem] font-bold uppercase tracking-widest"
-        style={{ color: layout.accentDark }}
-      >
-        {typeName}
-      </span>
+      <div className="flex items-start justify-between gap-2">
+        <span
+          className="font-label text-[0.58rem] font-bold uppercase tracking-widest"
+          style={{ color: layout.accentDark }}
+        >
+          {typeName}
+        </span>
+        <button
+          type="button"
+          aria-label="Close and return to island"
+          title="Back to island (Esc)"
+          className="-mr-1 -mt-1 rounded-full px-2 py-0.5 font-heading text-xs font-bold text-ink-soft hover:bg-white/60"
+          onClick={() => closeAndBack(anchor.islandId)}
+        >
+          ✕
+        </button>
+      </div>
       <h2 className="mt-0.5 font-heading text-base font-bold leading-tight text-ink">
         {anchor.label}
       </h2>

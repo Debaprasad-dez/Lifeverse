@@ -71,6 +71,9 @@ interface Archipelago {
   waterfalls: { lip: Vector3; dir: Vector3; style: WaterfallStyle }[];
 }
 
+/** Meadow variety — gold, pink, lilac, white, peach. */
+const FLOWER_COLORS = ["#ffd34d", "#ff9ecf", "#c5a3ff", "#fff3f3", "#ffa94d"];
+
 const cA = new Color();
 const cB = new Color();
 /** Vitality drains color toward dry hay — saturation IS the analytics. */
@@ -210,6 +213,7 @@ function buildArchipelago(state: WorldState): Archipelago {
       });
     }
 
+    const flowerRng = mulberry32(seed ^ 0xf10e);
     for (const f of scatterOnCap(seed ^ 0xf10e, geom, {
       count: Math.round((6 + flora * 16) * lerp(0.4, 1.2, island.vitality)),
       minDistance: 1.4,
@@ -221,6 +225,7 @@ function buildArchipelago(state: WorldState): Archipelago {
       out.flowers.push({
         position: [ix + f.x, iy + f.y + 0.1, iz + f.z],
         scale: f.scale,
+        color: FLOWER_COLORS[Math.floor(flowerRng() * FLOWER_COLORS.length)],
       });
     }
   }
@@ -375,7 +380,11 @@ export default function WorldGraph() {
           />
           <InstancedPool
             geometry={GEOS.canopy}
-            material={getToonMaterial("canopy", { flatShading: true, rimStrength: 0.38 })}
+            material={getToonMaterial("canopy", {
+              flatShading: true,
+              rimStrength: 0.46,
+              rimColor: "#ffeec2",
+            })}
             instances={data.canopies}
             castShadow
             receiveShadow
@@ -388,9 +397,9 @@ export default function WorldGraph() {
           <InstancedPool
             geometry={GEOS.flower}
             material={getToonMaterial("flower", {
-              color: PALETTE.gold,
-              emissive: "#ffc83d",
-              emissiveIntensity: 0.85,
+              color: "#ffffff",
+              emissive: "#fff0cd",
+              emissiveIntensity: 0.45,
             })}
             instances={data.flowers}
           />

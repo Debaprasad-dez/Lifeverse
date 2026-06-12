@@ -39,6 +39,7 @@ const GEO = {
   bird: new ConeGeometry(0.16, 0.55, 4).rotateX(Math.PI / 2),
   firefly: new SphereGeometry(0.06, 5, 4),
   villager: new CapsuleGeometry(0.1, 0.17, 3, 6),
+  villagerHead: new SphereGeometry(0.085, 8, 6),
   book: new BoxGeometry(0.34, 0.06, 0.26),
   lantern: new BoxGeometry(0.16, 0.22, 0.16),
 };
@@ -73,6 +74,7 @@ export default function AmbientLife({ state, built }: AmbientLifeProps) {
   const birdRef = useRef<InstancedMesh>(null);
   const fireflyRef = useRef<InstancedMesh>(null);
   const villagerRef = useRef<InstancedMesh>(null);
+  const villagerHeadRef = useRef<InstancedMesh>(null);
   const bookRef = useRef<InstancedMesh>(null);
   const lanternRef = useRef<InstancedMesh>(null);
 
@@ -266,6 +268,7 @@ export default function AmbientLife({ state, built }: AmbientLifeProps) {
     }
 
     const vil = villagerRef.current;
+    const heads = villagerHeadRef.current;
     if (vil) {
       specs.villagers.forEach((v, i) => {
         const k = ((v.phase + t * v.speed) % 1 + 1) % 1;
@@ -279,8 +282,14 @@ export default function AmbientLife({ state, built }: AmbientLifeProps) {
         const hop = 1 + Math.abs(Math.sin(t * 7 + i)) * 0.08;
         tmpM.compose(tmpV, tmpQ, tmpS.set(1, hop, 1));
         vil.setMatrixAt(i, tmpM);
+        if (heads) {
+          tmpV.y += 0.3 * hop;
+          tmpM.compose(tmpV, tmpQ, tmpS.setScalar(1));
+          heads.setMatrixAt(i, tmpM);
+        }
       });
       vil.instanceMatrix.needsUpdate = true;
+      if (heads) heads.instanceMatrix.needsUpdate = true;
     }
 
     const book = bookRef.current;
@@ -363,14 +372,25 @@ export default function AmbientLife({ state, built }: AmbientLifeProps) {
         />
       )}
       {specs.villagers.length > 0 && (
-        <instancedMesh
-          ref={(m) => {
-            villagerRef.current = m;
-            setColors(m, specs.villagers.map((v) => v.color));
-          }}
-          args={[GEO.villager, getToonMaterial("villager", { rimStrength: 0.4 }), specs.villagers.length]}
-          frustumCulled={false}
-        />
+        <>
+          <instancedMesh
+            ref={(m) => {
+              villagerRef.current = m;
+              setColors(m, specs.villagers.map((v) => v.color));
+            }}
+            args={[GEO.villager, getToonMaterial("villager", { rimStrength: 0.4 }), specs.villagers.length]}
+            frustumCulled={false}
+          />
+          <instancedMesh
+            ref={villagerHeadRef}
+            args={[
+              GEO.villagerHead,
+              getToonMaterial("villager-head", { color: "#ffe3c4", rimStrength: 0.35 }),
+              specs.villagers.length,
+            ]}
+            frustumCulled={false}
+          />
+        </>
       )}
       {specs.books.length > 0 && (
         <instancedMesh

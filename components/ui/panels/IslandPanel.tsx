@@ -81,7 +81,7 @@ export default function IslandPanel({ island, layout }: IslandPanelProps) {
         <span className="font-body text-[0.68rem] text-ink-soft">
           {questCount > 0 ? `${questCount} active quest${questCount > 1 ? "s" : ""}` : "No active quests"}
         </span>
-        {mode === "ORBIT_WORLD" && (
+        {mode === "ORBIT_WORLD" ? (
           <button
             type="button"
             className="pill-btn"
@@ -90,6 +90,15 @@ export default function IslandPanel({ island, layout }: IslandPanelProps) {
             }
           >
             Enter
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="pill-btn secondary"
+            title="Back to world view (Esc)"
+            onClick={() => useCameraStore.getState().flyToWorld()}
+          >
+            ⌂ World
           </button>
         )}
       </div>

@@ -25,8 +25,6 @@ interface ContextualUIProps {
  * enforced by uiStore's single activePanel slot.
  */
 export default function ContextualUI({ built, anchors }: ContextualUIProps) {
-  const panel = useUIStore((s) => s.activePanel);
-
   // camera ↔ panel lifecycle
   useEffect(() => {
     const unsub = useCameraStore.subscribe((s, prev) => {
@@ -48,6 +46,70 @@ export default function ContextualUI({ built, anchors }: ContextualUIProps) {
     });
     return unsub;
   }, []);
+
+  return (
+    <>
+      <PanelLayer built={built} anchors={anchors} />
+      <HoverTips built={built} anchors={anchors} />
+    </>
+  );
+}
+
+/** Micro-affordances: what hovering means, said at the hover point. */
+function HoverTips({ built, anchors }: ContextualUIProps) {
+  const hoveredIslandId = useUIStore((s) => s.hoveredIslandId);
+  const hoveredStructureId = useUIStore((s) => s.hoveredStructureId);
+  const mode = useCameraStore((s) => s.mode);
+  const inspected = useCameraStore((s) => s.inspectedStructureId);
+
+  // island tip only from world orbit — once focused, the panel takes over
+  if (mode === "ORBIT_WORLD" && hoveredIslandId) {
+    const b = built.find((x) => x.island.id === hoveredIslandId);
+    if (b && !b.island.locked && b.layout) {
+      const [x, y, z] = b.island.position;
+      return (
+        <Html
+          position={[x, y + (b.layout.capHeight ?? 2) + 5.6, z]}
+          center
+          zIndexRange={[20, 5]}
+          style={{ pointerEvents: "none" }}
+        >
+          <div className="glass whitespace-nowrap px-2.5 py-1">
+            <span className="font-label text-[0.62rem] font-bold tracking-wide text-ink-soft">
+              Double-click to enter
+            </span>
+          </div>
+        </Html>
+      );
+    }
+  }
+
+  if (hoveredStructureId && hoveredStructureId !== inspected) {
+    const a = anchors.find((x) => x.structureId === hoveredStructureId);
+    if (a) {
+      return (
+        <Html
+          position={[a.position[0], a.position[1] + a.height + 1.1, a.position[2]]}
+          center
+          zIndexRange={[20, 5]}
+          style={{ pointerEvents: "none" }}
+        >
+          <div className="glass whitespace-nowrap px-2.5 py-1 text-center">
+            <span className="font-heading text-[0.7rem] font-bold text-ink">{a.label}</span>
+            <span className="ml-1.5 font-label text-[0.58rem] font-semibold uppercase tracking-wider text-ink-soft">
+              click to inspect
+            </span>
+          </div>
+        </Html>
+      );
+    }
+  }
+
+  return null;
+}
+
+function PanelLayer({ built, anchors }: ContextualUIProps) {
+  const panel = useUIStore((s) => s.activePanel);
 
   if (!panel || panel.kind === "settings") return null;
 

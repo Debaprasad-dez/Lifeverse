@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(& \"C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe\" --headless=old --window-size=1300,750 --screenshot=\"C:\\\\Users\\\\debap\\\\Desktop\\\\Lifeverse\\\\_polish.png\" --virtual-time-budget=30000 \"http://localhost:3000/?island=health\")",
+      "PowerShell(\"done\")",
+      "PowerShell(& \"C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe\" --headless=old --window-size=1300,750 --screenshot=\"C:\\\\Users\\\\debap\\\\Desktop\\\\Lifeverse\\\\_polish2.png\" --virtual-time-budget=30000 \"http://localhost:3000/?nogenesis=1\")",
+      "PowerShell(git add -A)",
+      "PowerShell(git reset _commitmsg.txt)",
+      "PowerShell(git commit -F _commitmsg.txt)",
+      "PowerShell(git push origin master)"
+    ]
+  }
+}

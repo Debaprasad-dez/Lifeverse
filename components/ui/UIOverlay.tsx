@@ -11,6 +11,7 @@ import { on } from "@/lib/events";
 import SettingsSheet from "@/components/ui/panels/SettingsSheet";
 import GenesisSheet from "@/components/ui/panels/GenesisSheet";
 import Onboarding from "@/components/ui/Onboarding";
+import ControlsHelp from "@/components/ui/ControlsHelp";
 
 /**
  * Persistent chrome budget (hard rule): one brand chip, one time/compass
@@ -26,6 +27,7 @@ export default function UIOverlay() {
       <TimeCompass />
       <CompanionOrb />
       <Hints />
+      <ControlsHelp />
       <AnimatePresence>{settingsOpen && <SettingsSheet />}</AnimatePresence>
       {genesisPhase === "asking" && <GenesisSheet />}
       <GenesisGate />
@@ -41,6 +43,14 @@ function GenesisGate() {
   useEffect(() => {
     const flags = getLocal("flags", DEFAULT_FLAGS);
     if (flags.genesisDone) return;
+
+    // deep links (?island=…) and explicit skips bypass genesis — they're
+    // inspection paths, not first-run journeys
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("island") || params.has("nogenesis")) {
+      useGenesisStore.getState().skip();
+      return;
+    }
 
     const decide = (source: "snapshot" | "fixture"): void => {
       if (source === "snapshot") {
@@ -194,30 +204,41 @@ function CompanionOrb() {
   );
 }
 
+const HINTS = [
+  "Drag to orbit · Scroll to zoom · Double-click an island to fly",
+  "Click any building to inspect it · Click the sky to back out",
+  "Press ? anytime to see all controls",
+];
+
+const HINT_MS = 4200;
+
 function Hints() {
-  const [visible, setVisible] = useState(false);
+  const [idx, setIdx] = useState(-1);
 
   useEffect(() => {
-    const show = setTimeout(() => setVisible(true), 1600);
-    const hide = setTimeout(() => setVisible(false), 9500);
-    return () => {
-      clearTimeout(show);
-      clearTimeout(hide);
-    };
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    timers.push(setTimeout(() => setIdx(0), 1600));
+    HINTS.forEach((_, i) => {
+      timers.push(setTimeout(() => setIdx(i + 1), 1600 + (i + 1) * HINT_MS));
+    });
+    return () => timers.forEach(clearTimeout);
   }, []);
 
+  const hint = idx >= 0 && idx < HINTS.length ? HINTS[idx] : null;
+
   return (
-    <AnimatePresence>
-      {visible && (
+    <AnimatePresence mode="wait">
+      {hint && (
         <motion.div
+          key={hint}
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 10 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
+          transition={{ duration: 0.55, ease: "easeOut" }}
           className="glass absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2"
         >
           <span className="font-label text-xs font-medium tracking-wide text-ink-soft">
-            Drag to orbit · Scroll to zoom · Double-click an island to fly · 1–7 visit kingdoms
+            {hint}
           </span>
         </motion.div>
       )}
