@@ -1,26 +1,52 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* LifeVerse tokens (LIFEVERSE_PLAN.md — Stitch design language) */
+  --color-aura: #4fc3f7;
+  --color-aura-deep: #006688;
+  --color-gold: #fdd34d;
+  --color-mystic: #c8a8ff;
+  --color-sky-zenith: #9ed4ff;
+  --color-sky-horizon: #f4faff;
+  --color-sun-warm: #ffd9a0;
+  --color-ink: #1d3147;
+  --color-ink-soft: #44607e;
+
+  --font-heading: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-vietnam), ui-sans-serif, system-ui, sans-serif;
+  --font-label: var(--font-quicksand), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-glass: 1.5rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: linear-gradient(
+    to bottom,
+    var(--color-sky-zenith),
+    var(--color-sky-horizon)
+  );
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* Glassmorphic surface — hyper-rounded, tinted shadow (DESIGN.md language) */
+.glass {
+  border-radius: var(--radius-glass);
+  background: color-mix(in srgb, white 58%, transparent);
+  backdrop-filter: blur(24px) saturate(1.35);
+  -webkit-backdrop-filter: blur(24px) saturate(1.35);
+  border: 1px solid color-mix(in srgb, white 70%, transparent);
+  box-shadow:
+    0 8px 28px -8px rgba(0, 102, 136, 0.28),
+    0 2px 8px rgba(29, 49, 71, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
