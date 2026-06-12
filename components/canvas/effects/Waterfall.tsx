@@ -31,6 +31,7 @@ void main() {
 const fragmentShader = /* glsl */ `
 uniform float uTime;
 uniform vec3 uTint;
+uniform float uRainbow;
 varying vec2 vUv;
 
 ${GLSL_SIMPLEX_2D}
@@ -41,7 +42,12 @@ void main() {
   float streak2 = snoise(vec2(vUv.x * 11.0 + 4.0, vUv.y * 13.0 - uTime * 2.6));
   float foam = smoothstep(0.05, 0.75, streak * 0.7 + streak2 * 0.3);
 
-  vec3 col = mix(vec3(1.0), uTint, vUv.y * 0.55);
+  vec3 tint = uTint;
+  if (uRainbow > 0.5) {
+    // creativity paint-river: drifting cosine rainbow
+    tint = 0.62 + 0.38 * cos(6.28318 * (vUv.y * 0.85 + vUv.x * 0.2 - uTime * 0.07 + vec3(0.0, 0.33, 0.67)));
+  }
+  vec3 col = mix(vec3(1.0), tint, 0.25 + vUv.y * 0.55);
   col += foam * 0.25;
 
   float edge = smoothstep(0.0, 0.18, vUv.x) * smoothstep(1.0, 0.82, vUv.x);
@@ -67,13 +73,22 @@ function makeSplashTexture(): CanvasTexture {
   return new CanvasTexture(c);
 }
 
+export type WaterfallStyle = "water" | "gold" | "paint";
+
+const STYLE_TINTS: Record<WaterfallStyle, string> = {
+  water: PALETTE.waterfall,
+  gold: "#ffd166", // finance: the golden river
+  paint: "#bfe9ff", // overridden by the rainbow palette in-shader
+};
+
 interface WaterfallProps {
   lip: Vector3;
   dir: Vector3;
+  style?: WaterfallStyle;
 }
 
 /** Ribbon of falling water from a rim notch down into the cloud sea. */
-export default function Waterfall({ lip, dir }: WaterfallProps) {
+export default function Waterfall({ lip, dir, style = "water" }: WaterfallProps) {
   const splashGroup = useRef<Group>(null);
 
   const { geometry, material, splashMaterial, splashGeometry, basePos } = useMemo(() => {
@@ -117,7 +132,8 @@ export default function Waterfall({ lip, dir }: WaterfallProps) {
       fragmentShader,
       uniforms: {
         uTime: { value: 0 },
-        uTint: { value: new Color(PALETTE.waterfall) },
+        uTint: { value: new Color(STYLE_TINTS[style]) },
+        uRainbow: { value: style === "paint" ? 1 : 0 },
       },
       transparent: true,
       depthWrite: false,
@@ -127,6 +143,7 @@ export default function Waterfall({ lip, dir }: WaterfallProps) {
 
     const splashMaterial = new MeshBasicMaterial({
       map: makeSplashTexture(),
+      color: style === "water" ? "#ffffff" : STYLE_TINTS[style],
       transparent: true,
       depthWrite: false,
       opacity: 0.55,
@@ -141,7 +158,7 @@ export default function Waterfall({ lip, dir }: WaterfallProps) {
       .setY(WORLD.cloudSeaY + 4.0);
 
     return { geometry, material, splashMaterial, splashGeometry, basePos };
-  }, [lip, dir]);
+  }, [lip, dir, style]);
 
   useFrame((state, delta) => {
     material.uniforms.uTime.value += delta;

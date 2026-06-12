@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 import {
   BoxGeometry,
+  Color,
   ConeGeometry,
   CylinderGeometry,
   IcosahedronGeometry,
@@ -15,14 +16,15 @@ import {
   type IslandGeometry,
 } from "@/engine/generation/island";
 import { scatterOnCap } from "@/engine/generation/scatter";
-import type { PrimKind } from "@/engine/generation/greybox";
+import type { PrimKind } from "@/engine/generation/structures/kit";
 import {
   islandRadius,
   KINGDOM_LAYOUTS,
   type KingdomLayout,
 } from "@/engine/resolver/layout";
 import { SLOT_MAPS, SIZE_SCALE } from "@/engine/resolver/slots";
-import { resolveGreybox, slotLocalXZ } from "@/engine/resolver/resolve";
+import { resolveStructures, slotLocalXZ } from "@/engine/resolver/resolve";
+import { islandAnalytics } from "@/engine/resolver/analytics";
 import {
   CORE_KINGDOM_IDS,
   type CoreKingdomId,
@@ -32,16 +34,21 @@ import {
 } from "@/engine/schema/world";
 import { getToonMaterial } from "@/engine/materials/toon";
 import { PALETTE } from "@/lib/constants";
-import { mulberry32, seedFrom } from "@/lib/noise";
+import { lerp, mulberry32, seedFrom } from "@/lib/noise";
 import { useWorldStore } from "@/stores/worldStore";
 import InstancedPool, { type PoolInstance } from "@/components/canvas/InstancedPool";
 import KingdomIsland from "@/components/canvas/islands/KingdomIsland";
 import BridgeLayer from "@/components/canvas/effects/BridgeLayer";
-import Waterfall from "@/components/canvas/effects/Waterfall";
+import Waterfall, { type WaterfallStyle } from "@/components/canvas/effects/Waterfall";
+import AmbientLife from "@/components/canvas/effects/AmbientLife";
+import WeatherLayer from "@/components/canvas/effects/WeatherLayer";
+import { MeshBasicMaterial } from "three";
 
-interface BuiltIsland {
+export interface BuiltIsland {
   island: Island;
   geom: IslandGeometry;
+  geomMid?: IslandGeometry;
+  geomLow?: IslandGeometry;
   layout?: KingdomLayout;
 }
 
@@ -53,17 +60,18 @@ interface Archipelago {
   canopies: PoolInstance[];
   grass: PoolInstance[];
   flowers: PoolInstance[];
-  waterfalls: { lip: Vector3; dir: Vector3 }[];
+  waterfalls: { lip: Vector3; dir: Vector3; style: WaterfallStyle }[];
 }
 
-function lerpHex(a: string, b: string, t: number): string {
-  const pa = parseInt(a.slice(1), 16);
-  const pb = parseInt(b.slice(1), 16);
-  const ch = (sa: number, sb: number): number => Math.round(sa + (sb - sa) * t);
-  const r = ch((pa >> 16) & 255, (pb >> 16) & 255);
-  const g = ch((pa >> 8) & 255, (pb >> 8) & 255);
-  const bl = ch(pa & 255, pb & 255);
-  return `#${((r << 16) | (g << 8) | bl).toString(16).padStart(6, "0")}`;
+const cA = new Color();
+const cB = new Color();
+/** Vitality drains color toward dry hay — saturation IS the analytics. */
+function vitalityTint(full: string, saturation: number, rng: number): string {
+  cA.set(full);
+  cB.set("#c4b687");
+  cB.lerp(cA, saturation);
+  cB.multiplyScalar(0.92 + rng * 0.16);
+  return `#${cB.getHexString()}`;
 }
 
 function buildArchipelago(state: WorldState): Archipelago {
@@ -83,20 +91,26 @@ function buildArchipelago(state: WorldState): Archipelago {
     const layout = core ? KINGDOM_LAYOUTS[island.id as CoreKingdomId] : undefined;
     const seed = seedFrom(state.worldSeed, island.id);
     const radius = island.locked ? 7.2 : islandRadius(island);
+    const analytics = islandAnalytics(island);
 
-    const geom = buildIsland({
+    const baseParams = {
       seed,
       radius,
       capHeight: layout?.capHeight ?? 1.5,
       depth: layout?.depth ?? 10,
-      angularSegments: island.locked ? 48 : 112,
-    });
-    out.islands.push({ island, geom, layout });
+    };
+    const geom = buildIsland({ ...baseParams, detail: island.locked ? 0.4 : 1 });
+    const built: BuiltIsland = { island, geom, layout };
+    if (!island.locked) {
+      built.geomMid = buildIsland({ ...baseParams, detail: 0.55 });
+      built.geomLow = buildIsland({ ...baseParams, detail: 0.3 });
+    }
+    out.islands.push(built);
     out.geometries.set(island.id, geom);
 
     const [ix, iy, iz] = island.position;
 
-    for (const st of buildStalactites(seed, geom, island.locked ? 8 : 20)) {
+    for (const st of buildStalactites(seed, geom, island.locked ? 8 : 18)) {
       out.stalactites.push({
         position: [
           ix + st.position.x,
@@ -115,21 +129,23 @@ function buildArchipelago(state: WorldState): Archipelago {
     const avoid = island.structures.map((s) => {
       const slot = slots[s.slot % slots.length];
       const { x, z } = slotLocalXZ(geom, slot);
-      return { x, z, r: 2.3 * SIZE_SCALE[slot.size] };
+      return { x, z, r: 2.4 * SIZE_SCALE[slot.size] };
     });
     if (layout.hasWaterfall) {
       avoid.push({ x: geom.waterfall.lip.x, z: geom.waterfall.lip.z, r: 3.2 });
       out.waterfalls.push({
         lip: geom.waterfall.lip.clone().add(new Vector3(ix, iy, iz)),
         dir: geom.waterfall.dir.clone(),
+        style: layout.waterfallStyle ?? "water",
       });
     }
 
     const flora = island.ecosystem.flora;
+    const sat = analytics.floraSaturation;
     const blobRng = mulberry32(seed ^ 0xb10b);
 
     const trees = scatterOnCap(seed ^ 0x71ee5, geom, {
-      count: Math.round((7 + flora * 20) * layout.treeFactor),
+      count: Math.round((7 + flora * 20) * layout.treeFactor * analytics.treeCountMul),
       minDistance: 3.0,
       radialMax: 0.85,
       maxSlope: 0.8,
@@ -156,7 +172,11 @@ function buildArchipelago(state: WorldState): Archipelago {
           ],
           rotation: [0, a, 0],
           scale: [bs * 1.15, bs, bs * 1.15],
-          color: lerpHex(PALETTE.canopyDeep, PALETTE.canopyLight, blobRng()),
+          color: vitalityTint(
+            blobRng() < 0.5 ? PALETTE.canopyDeep : PALETTE.canopyLight,
+            sat,
+            blobRng()
+          ),
         });
       }
     }
@@ -174,12 +194,16 @@ function buildArchipelago(state: WorldState): Archipelago {
         position: [ix + g.x, iy + g.y + 0.22 * g.scale, iz + g.z],
         rotation: [0, g.rotationY, (grassRng() - 0.5) * 0.3],
         scale: g.scale,
-        color: lerpHex(PALETTE.grassDeep, PALETTE.grassLight, grassRng()),
+        color: vitalityTint(
+          grassRng() < 0.5 ? PALETTE.grassDeep : PALETTE.grassLight,
+          sat,
+          grassRng()
+        ),
       });
     }
 
     for (const f of scatterOnCap(seed ^ 0xf10e, geom, {
-      count: Math.round(6 + flora * 16),
+      count: Math.round((6 + flora * 16) * lerp(0.4, 1.2, island.vitality)),
       minDistance: 1.4,
       radialMax: 0.88,
       maxSlope: 0.9,
@@ -206,11 +230,15 @@ const GEOS = {
   cylinder: new CylinderGeometry(0.5, 0.5, 1, 10),
   cone: new ConeGeometry(0.5, 1, 8, 1),
   dome: new SphereGeometry(0.5, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+  sphere: new SphereGeometry(0.5, 10, 8),
 };
 
-const PRIM_KINDS: PrimKind[] = ["box", "cylinder", "cone", "dome"];
+const PRIM_KINDS: PrimKind[] = ["box", "cylinder", "cone", "dome", "sphere"];
 
-/** The whole data-driven world: islands, flora, greybox structures, bridges. */
+/** Unlit pool material — HDR instance colors read as light, Bloom does the rest. */
+const glowMaterial = new MeshBasicMaterial({ toneMapped: false });
+
+/** The whole data-driven world: islands, flora, structures, life, weather. */
 export default function WorldGraph() {
   const state = useWorldStore((s) => s.state);
 
@@ -219,11 +247,14 @@ export default function WorldGraph() {
   }, []);
 
   // Geometry rebuilds only when something structural changes — level
-  // (radius), lock state, flora density, or the seed itself.
+  // (radius), lock state, flora/vitality, or the seed itself.
   const geoKey = state
     ? state.worldSeed +
       state.islands
-        .map((i) => `${i.id}:${i.level}:${i.locked ? 1 : 0}:${i.ecosystem.flora.toFixed(2)}`)
+        .map(
+          (i) =>
+            `${i.id}:${i.level}:${i.locked ? 1 : 0}:${i.ecosystem.flora.toFixed(2)}:${i.vitality.toFixed(2)}`
+        )
         .join("|")
     : "";
 
@@ -231,25 +262,28 @@ export default function WorldGraph() {
   const data = useMemo(() => (state ? buildArchipelago(state) : null), [geoKey]);
 
   const pools = useMemo(
-    () => (state && data ? resolveGreybox(state, data.geometries) : null),
+    () => (state && data ? resolveStructures(state, data.geometries) : null),
     [state, data]
   );
 
-  const greyboxInstances = useMemo(() => {
+  const poolInstances = useMemo(() => {
     if (!pools) return null;
-    const map: Partial<Record<PrimKind, PoolInstance[]>> = {};
-    for (const kind of PRIM_KINDS) {
-      map[kind] = pools[kind].map((p) => ({
-        position: p.position,
-        rotation: [0, p.rotY, 0] as [number, number, number],
-        scale: p.scale,
-        color: lerpHex("#3c444e", "#e8edf2", p.shade),
-      }));
-    }
-    return map as Record<PrimKind, PoolInstance[]>;
+    const toPool = (src: typeof pools.body): Record<PrimKind, PoolInstance[]> => {
+      const map = {} as Record<PrimKind, PoolInstance[]>;
+      for (const kind of PRIM_KINDS) {
+        map[kind] = src[kind].map((p) => ({
+          position: p.position,
+          rotation: [0, p.rotY, 0] as [number, number, number],
+          scale: p.scale,
+          color: p.color,
+        }));
+      }
+      return map;
+    };
+    return { body: toPool(pools.body), glow: toPool(pools.glow) };
   }, [pools]);
 
-  if (!state || !data || !greyboxInstances) return null;
+  if (!state || !data || !poolInstances) return null;
 
   const rockMat = getToonMaterial("stalactite", {
     color: PALETTE.rockUnder,
@@ -257,12 +291,19 @@ export default function WorldGraph() {
     rimColor: "#d9c4ef",
     rimStrength: 0.22,
   });
-  const greyboxMat = getToonMaterial("greybox", { rimStrength: 0.26 });
+  const bodyMat = getToonMaterial("structure-body", { rimStrength: 0.3 });
 
   return (
     <group>
       {data.islands.map((b) => (
-        <KingdomIsland key={b.island.id} island={b.island} geom={b.geom} layout={b.layout} />
+        <KingdomIsland
+          key={b.island.id}
+          island={b.island}
+          geom={b.geom}
+          geomMid={b.geomMid}
+          geomLow={b.geomLow}
+          layout={b.layout}
+        />
       ))}
 
       <InstancedPool geometry={GEOS.stalactite} material={rockMat} instances={data.stalactites} />
@@ -296,20 +337,30 @@ export default function WorldGraph() {
 
       {PRIM_KINDS.map((kind) => (
         <InstancedPool
-          key={kind}
+          key={`body-${kind}`}
           geometry={GEOS[kind]}
-          material={greyboxMat}
-          instances={greyboxInstances[kind]}
+          material={bodyMat}
+          instances={poolInstances.body[kind]}
           castShadow
           receiveShadow
         />
       ))}
+      {PRIM_KINDS.map((kind) => (
+        <InstancedPool
+          key={`glow-${kind}`}
+          geometry={GEOS[kind]}
+          material={glowMaterial}
+          instances={poolInstances.glow[kind]}
+        />
+      ))}
 
       {data.waterfalls.map((w, i) => (
-        <Waterfall key={i} lip={w.lip} dir={w.dir} />
+        <Waterfall key={i} lip={w.lip} dir={w.dir} style={w.style} />
       ))}
 
       <BridgeLayer state={state} />
+      <AmbientLife state={state} built={data.islands} />
+      <WeatherLayer state={state} built={data.islands} />
     </group>
   );
 }

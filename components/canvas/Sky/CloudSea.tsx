@@ -80,7 +80,8 @@ export default function CloudSea() {
       position={[0, WORLD.cloudSeaY, 0]}
       frustumCulled={false}
     >
-      <planeGeometry args={[1700, 1700, 150, 150]} />
+      {/* 80² segments ≈ 12.8k tris — the sea was the biggest single tri cost */}
+      <planeGeometry args={[1700, 1700, 80, 80]} />
     </mesh>
   );
 }

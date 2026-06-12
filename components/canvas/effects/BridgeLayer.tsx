@@ -67,6 +67,8 @@ export default function BridgeLayer({ state }: { state: WorldState }) {
 
       const curve = new QuadraticBezierCurve3(start, mid, end);
       const radius = 0.14 + 0.32 * bridge.strength;
+      // finance routes run gold — visible TRADE ROUTES (diegetic analytics)
+      const isTrade = bridge.from === "finance" || bridge.to === "finance";
       out.push({
         geometry: new TubeGeometry(curve, 32, radius, 6, false),
         material: new ShaderMaterial({
@@ -74,7 +76,7 @@ export default function BridgeLayer({ state }: { state: WorldState }) {
           fragmentShader,
           uniforms: {
             uTime: { value: 0 },
-            uColor: { value: new Color(PALETTE.aura) },
+            uColor: { value: new Color(isTrade ? PALETTE.gold : PALETTE.aura) },
             uStrength: { value: bridge.strength },
           },
           // normal blending: additive ribbons vanish against the bright sky

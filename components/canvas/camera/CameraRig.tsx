@@ -72,6 +72,28 @@ export default function CameraRig() {
     []
   );
 
+  // ---- ?island=<id> deep link: open already orbiting that kingdom ----------
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("island");
+    if (!id) return;
+    const jump = (): boolean => {
+      const island = useWorldStore.getState().state?.islands.find((i) => i.id === id);
+      if (!island) return false;
+      const center = islandCenter(island);
+      target.current.set(...center);
+      modeTarget.current.set(...center);
+      sph.current.radius = 26;
+      sph.current.polar = (68 * Math.PI) / 180;
+      useCameraStore.getState().setMode("ORBIT_ISLAND");
+      return true;
+    };
+    if (jump()) return;
+    const unsub = useWorldStore.subscribe((s) => {
+      if (s.state && jump()) unsub();
+    });
+    return unsub;
+  }, []);
+
   // ---- flight choreography -------------------------------------------------
   useEffect(() => {
     const unsub = useCameraStore.subscribe((state, prev) => {

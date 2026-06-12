@@ -1,17 +1,22 @@
 /**
  * WorldState → render props. Flattens every structure on every unlocked
- * island into per-primitive instance pools (one InstancedMesh per primitive
- * kind for the whole archipelago) using the hand-authored slot maps.
+ * island into per-primitive instance pools — two material families (toon
+ * body / unlit glow), one InstancedMesh per (family × primitive) for the
+ * whole archipelago. The resolver owns ALL aesthetics.
  */
 
+import { Color } from "three";
 import type { IslandGeometry } from "@/engine/generation/island";
-import { GREYBOX_RECIPES, type PrimKind } from "@/engine/generation/greybox";
+import type { Part, PrimKind } from "@/engine/generation/structures/kit";
+import { buildStructureParts } from "@/engine/generation/structures/recipes";
 import {
   CORE_KINGDOM_IDS,
   type CoreKingdomId,
   type KingdomId,
   type WorldState,
 } from "@/engine/schema/world";
+import { KINGDOM_LAYOUTS } from "./layout";
+import { islandAnalytics } from "./analytics";
 import { SIZE_SCALE, SLOT_MAPS } from "./slots";
 import { DEG } from "@/lib/constants";
 
@@ -19,11 +24,24 @@ export interface PartInstance {
   position: [number, number, number];
   rotY: number;
   scale: [number, number, number];
-  /** Grey value 0–1 (glowing structures run bright, dormant dim). */
-  shade: number;
+  /** Color may exceed 1.0 (HDR) — glowing windows feed Bloom directly. */
+  color: string | Color;
 }
 
-export type GreyboxPools = Record<PrimKind, PartInstance[]>;
+export type PartPools = Record<PrimKind, PartInstance[]>;
+
+export interface ResolvedStructures {
+  body: PartPools;
+  glow: PartPools;
+}
+
+const emptyPools = (): PartPools => ({
+  box: [],
+  cylinder: [],
+  cone: [],
+  dome: [],
+  sphere: [],
+});
 
 /** Slot anchor in island-local XZ (shared by structures + flora keep-out). */
 export function slotLocalXZ(
@@ -47,11 +65,14 @@ function hash01(s: string): number {
   return ((h >>> 0) % 1000) / 1000;
 }
 
-export function resolveGreybox(
+const tmpColor = new Color();
+
+export function resolveStructures(
   state: WorldState,
   geometries: Map<KingdomId, IslandGeometry>
-): GreyboxPools {
-  const pools: GreyboxPools = { box: [], cylinder: [], cone: [], dome: [] };
+): ResolvedStructures {
+  const body = emptyPools();
+  const glow = emptyPools();
 
   for (const island of state.islands) {
     if (island.locked) continue;
@@ -59,32 +80,38 @@ export function resolveGreybox(
     const geom = geometries.get(island.id);
     if (!geom) continue;
 
+    const layout = KINGDOM_LAYOUTS[island.id as CoreKingdomId];
+    const analytics = islandAnalytics(island);
     const slots = SLOT_MAPS[island.id as CoreKingdomId];
-    const stageScale = 0.92 + island.evolutionStage * 0.06;
+    const stageScale = 0.9 + island.evolutionStage * 0.07;
 
     for (const structure of island.structures) {
       const slot = slots[structure.slot % slots.length];
       const { x: lx, z: lz } = slotLocalXZ(geom, slot);
-      const ly = geom.capHeightAt(lx, lz);
+      const ly = geom.capHeightAt(lx, lz) - 0.08; // settle into the grass
 
       const growthScale = 0.45 + 0.55 * structure.growth;
       const structScale = SIZE_SCALE[slot.size] * growthScale * stageScale;
       const yaw = (slot.rot + hash01(structure.id) * 14 - 7) * DEG;
-
-      let shade = 0.8 + hash01(structure.id + "s") * 0.08;
-      if (structure.state === "glowing") shade = 1.0;
-      if (structure.state === "dormant") shade = 0.58;
-      if (structure.state === "ruined") shade = 0.45;
-      if (structure.state === "seed") shade = 0.7;
-
       const cosY = Math.cos(yaw);
       const sinY = Math.sin(yaw);
 
-      for (const part of GREYBOX_RECIPES[structure.type]) {
+      // structure state tunes color: dormant fades, ruined darkens
+      const dimBody =
+        structure.state === "dormant" ? 0.62 : structure.state === "ruined" ? 0.45 : 1;
+      const glowBoost = structure.state === "glowing" ? 1.5 : 1;
+
+      const parts: Part[] = buildStructureParts(
+        structure.type,
+        layout.palette,
+        island.evolutionStage
+      );
+
+      for (const part of parts) {
         const [ox, oy, oz] = part.offset;
         const rx = (ox * cosY - oz * sinY) * structScale;
         const rz = (ox * sinY + oz * cosY) * structScale;
-        pools[part.kind].push({
+        const instance: PartInstance = {
           position: [
             island.position[0] + lx + rx,
             island.position[1] + ly + oy * structScale,
@@ -96,11 +123,26 @@ export function resolveGreybox(
             part.scale[1] * structScale,
             part.scale[2] * structScale,
           ],
-          shade,
-        });
+          color: part.color,
+        };
+
+        if (part.glow) {
+          // lightingIntensity drives window brightness — diegetic analytics.
+          // HDR color (can exceed 1) so Bloom reads it as a light source.
+          instance.color = tmpColor
+            .set(part.color)
+            .multiplyScalar((0.8 + analytics.glowMul) * glowBoost)
+            .clone();
+          glow[part.kind].push(instance);
+        } else {
+          if (dimBody < 1) {
+            instance.color = tmpColor.set(part.color).multiplyScalar(dimBody).clone();
+          }
+          body[part.kind].push(instance);
+        }
       }
     }
   }
 
-  return pools;
+  return { body, glow };
 }

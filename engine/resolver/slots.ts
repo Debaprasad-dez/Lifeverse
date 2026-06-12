@@ -18,7 +18,7 @@ export interface Slot {
   rot: number;
 }
 
-export const SIZE_SCALE: Record<SlotSize, number> = { S: 0.7, M: 1.0, L: 1.5 };
+export const SIZE_SCALE: Record<SlotSize, number> = { S: 0.85, M: 1.2, L: 1.8 };
 
 export const SLOT_MAPS: Record<CoreKingdomId, Slot[]> = {
   // dense tech-city: hero tower center, civic ring, outskirts

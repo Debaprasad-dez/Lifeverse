@@ -22,8 +22,9 @@ const SKY_SEED = 0xc10d5;
 /**
  * Procedural 2×2 cumulus atlas: overlapping radial-gradient lobes — wide
  * base, lumpy top, soft cool shading on the underbelly (reference clouds).
+ * Shared with WeatherLayer's per-island fog/storm sprites.
  */
-function makeCloudAtlas(): CanvasTexture {
+export function makeCloudAtlas(): CanvasTexture {
   const size = 1024;
   const cell = size / 2;
   const canvas = document.createElement("canvas");

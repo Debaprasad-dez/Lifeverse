@@ -16,6 +16,8 @@ export interface IslandParams {
   capHeight: number; // hill amplitude reference
   depth: number; // distance from rim to underside tip
   angularSegments?: number;
+  /** LOD multiplier (1 full, 0.5 mid, 0.25 silhouette) applied to all rows. */
+  detail?: number;
 }
 
 export interface IslandGeometry {
@@ -32,12 +34,16 @@ export interface IslandGeometry {
   waterfall: { lip: Vector3; dir: Vector3; theta: number };
 }
 
-const CAP_ROWS = 13;
-const CLIFF_ROWS = 9;
-const UNDER_ROWS = 17;
+const BASE_CAP_ROWS = 12;
+const BASE_CLIFF_ROWS = 8;
+const BASE_UNDER_ROWS = 14;
 
 export function buildIsland(params: IslandParams): IslandGeometry {
-  const { seed, radius, capHeight, depth, angularSegments: A = 128 } = params;
+  const { seed, radius, capHeight, depth, detail = 1 } = params;
+  const A = Math.max(16, Math.round((params.angularSegments ?? 96) * detail));
+  const CAP_ROWS = Math.max(4, Math.round(BASE_CAP_ROWS * detail));
+  const CLIFF_ROWS = Math.max(3, Math.round(BASE_CLIFF_ROWS * detail));
+  const UNDER_ROWS = Math.max(4, Math.round(BASE_UNDER_ROWS * detail));
   const rng = mulberry32(seed);
   const noise = makeNoise2D(seed ^ 0x9e3779b9);
   const offX = rng() * 100;

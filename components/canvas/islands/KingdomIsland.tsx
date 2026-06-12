@@ -1,5 +1,6 @@
 "use client";
 
+import { Detailed } from "@react-three/drei";
 import type { ThreeEvent } from "@react-three/fiber";
 import type { Island } from "@/engine/schema/world";
 import type { IslandGeometry } from "@/engine/generation/island";
@@ -11,14 +12,23 @@ import IslandLabel from "@/components/canvas/IslandLabel";
 interface KingdomIslandProps {
   island: Island;
   geom: IslandGeometry;
+  /** Lower-detail variants for the LOD chain (full → mid → silhouette). */
+  geomMid?: IslandGeometry;
+  geomLow?: IslandGeometry;
   layout?: KingdomLayout;
 }
 
 /**
- * One kingdom: positioned island mesh + label + fly-to interaction.
+ * One kingdom: positioned island mesh (3-tier LOD) + label + fly-to.
  * Flora/structures/waterfalls render in WorldGraph's merged pools.
  */
-export default function KingdomIsland({ island, geom, layout }: KingdomIslandProps) {
+export default function KingdomIsland({
+  island,
+  geom,
+  geomMid,
+  geomLow,
+  layout,
+}: KingdomIslandProps) {
   const material = island.locked
     ? getToonMaterial("locked-island", {
         color: "#75879e",
@@ -49,12 +59,25 @@ export default function KingdomIsland({ island, geom, layout }: KingdomIslandPro
   return (
     <group>
       <group position={island.position} onDoubleClick={onDoubleClick}>
-        <mesh
-          geometry={geom.geometry}
-          material={material}
-          castShadow={!island.locked}
-          receiveShadow={!island.locked}
-        />
+        {geomMid && geomLow ? (
+          <Detailed distances={[0, 110, 190]}>
+            <mesh
+              geometry={geom.geometry}
+              material={material}
+              castShadow={!island.locked}
+              receiveShadow={!island.locked}
+            />
+            <mesh geometry={geomMid.geometry} material={material} castShadow={!island.locked} />
+            <mesh geometry={geomLow.geometry} material={material} />
+          </Detailed>
+        ) : (
+          <mesh
+            geometry={geom.geometry}
+            material={material}
+            castShadow={!island.locked}
+            receiveShadow={!island.locked}
+          />
+        )}
       </group>
       {layout && labelPos && (
         <IslandLabel
