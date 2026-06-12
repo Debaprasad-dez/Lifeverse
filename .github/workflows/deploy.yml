@@ -9,9 +9,8 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      pages: write
-      id-token: write
+      # peaceiris/actions-gh-pages pushes the gh-pages branch
+      contents: write
 
     steps:
       - name: Checkout

@@ -7,7 +7,8 @@ import { Group } from "three";
 import { getToonMaterial } from "@/engine/materials/toon";
 import { useUIStore } from "@/stores/uiStore";
 
-const FONT = "/fonts/Quicksand-Bold.ttf";
+// basePath-aware: GitHub Pages serves under /Lifeverse/
+const FONT = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/fonts/Quicksand-Bold.ttf`;
 
 interface IslandLabelProps {
   islandId?: string;
