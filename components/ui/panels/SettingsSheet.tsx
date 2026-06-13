@@ -3,9 +3,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { DEFAULT_SETTINGS, getLocal, setLocal, type Settings } from "@/lib/storage";
-import { clearApiKey, hasApiKey, storeApiKey } from "@/lib/crypto";
-import { MODEL_CHAIN } from "@/lib/ai/models";
-import { aiRoute, type AIRoute } from "@/lib/ai/client";
 import { useUIStore } from "@/stores/uiStore";
 import { useWorldStore } from "@/stores/worldStore";
 import { tryParseWorldState } from "@/engine/schema/world";
@@ -25,35 +22,19 @@ const selectCls =
   "rounded-full border border-white/70 bg-white/70 px-2.5 py-1 font-body text-[0.7rem] text-ink outline-none";
 
 /**
- * Local-only settings — no account, no login. The OpenRouter key is
- * encrypted at rest (AES-GCM, device secret) and never leaves the browser
- * except toward OpenRouter itself.
+ * Local-only settings — no account, no login. AI runs invisibly in the
+ * background (proxied), so no model picker or key field is shown.
  */
 export default function SettingsSheet() {
   // sheet only mounts client-side, after user interaction — lazy reads are safe
   const [settings, setSettings] = useState<Settings>(() =>
     getLocal("settings", DEFAULT_SETTINGS)
   );
-  const [keyInput, setKeyInput] = useState("");
-  const [keySet, setKeySet] = useState(() => hasApiKey());
-  const [route, setRoute] = useState<AIRoute>(() => aiRoute());
-  const [savedFlash, setSavedFlash] = useState(false);
 
   const update = (patch: Partial<Settings>): void => {
     const next = { ...settings, ...patch };
     setSettings(next);
     setLocal("settings", next);
-  };
-
-  const saveKey = async (): Promise<void> => {
-    const trimmed = keyInput.trim();
-    if (!trimmed) return;
-    await storeApiKey(trimmed);
-    setKeyInput("");
-    setKeySet(true);
-    setRoute(aiRoute());
-    setSavedFlash(true);
-    setTimeout(() => setSavedFlash(false), 1600);
   };
 
   return (
@@ -77,65 +58,6 @@ export default function SettingsSheet() {
       </div>
 
       <div className="mt-3 space-y-3">
-        <div>
-          <Row label="AI companion">
-            <span
-              className={`rounded-full px-2 py-0.5 font-label text-[0.6rem] font-bold ${
-                route === "none" ? "bg-white/70 text-ink-soft" : "bg-[#3faf6e] text-white"
-              }`}
-            >
-              {route === "byok" ? "Your key ✓" : route === "proxy" ? "Ready ✓" : "Offline"}
-            </span>
-          </Row>
-          <p className="mt-1 font-body text-[0.6rem] leading-snug text-ink-soft/80">
-            {route === "byok"
-              ? "Using your own OpenRouter key, stored encrypted in this browser."
-              : route === "proxy"
-                ? "Aria runs on the shared key — no setup needed. Add your own below to override."
-                : "No AI route configured. Add your own OpenRouter key below to enable Aria."}
-          </p>
-          <div className="mt-1.5 flex gap-1.5">
-            <input
-              type="password"
-              value={keyInput}
-              onChange={(e) => setKeyInput(e.target.value)}
-              placeholder="sk-or-… (optional)"
-              autoComplete="off"
-              className="min-w-0 flex-1 rounded-full border border-white/70 bg-white/70 px-3 py-1 font-body text-[0.7rem] text-ink outline-none placeholder:text-ink-soft/50"
-            />
-            <button type="button" className="pill-btn" onClick={() => void saveKey()}>
-              {savedFlash ? "Saved" : "Save"}
-            </button>
-          </div>
-          {keySet && (
-            <button
-              type="button"
-              className="mt-1 font-body text-[0.62rem] text-ink-soft underline"
-              onClick={() => {
-                clearApiKey();
-                setKeySet(false);
-                setRoute(aiRoute());
-              }}
-            >
-              Forget key
-            </button>
-          )}
-        </div>
-
-        <Row label="Model">
-          <select
-            className={selectCls}
-            value={settings.preferredModel}
-            onChange={(e) => update({ preferredModel: e.target.value })}
-          >
-            {MODEL_CHAIN.map((m) => (
-              <option key={m} value={m}>
-                {m.split("/")[1]?.replace(":free", "") ?? m}
-              </option>
-            ))}
-          </select>
-        </Row>
-
         <Row label="Quality">
           <select
             className={selectCls}
