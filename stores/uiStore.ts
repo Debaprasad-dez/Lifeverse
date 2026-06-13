@@ -14,6 +14,7 @@ export type ActivePanel =
   | { kind: "memory-form"; islandId: string }
   | { kind: "settings" }
   | { kind: "time" }
+  | { kind: "collection" }
   | null;
 
 interface UIStore {
@@ -32,6 +33,7 @@ interface UIStore {
   openMemoryForm: (islandId: string) => void;
   openSettings: () => void;
   openTime: () => void;
+  openCollection: () => void;
   dismiss: () => void;
   setHoveredIsland: (id: string | null) => void;
   setHoveredStructure: (id: string | null) => void;
@@ -56,6 +58,7 @@ export const useUIStore = create<UIStore>((set) => ({
   openMemoryForm: (islandId) => set({ activePanel: { kind: "memory-form", islandId } }),
   openSettings: () => set({ activePanel: { kind: "settings" } }),
   openTime: () => set({ activePanel: { kind: "time" } }),
+  openCollection: () => set({ activePanel: { kind: "collection" } }),
   dismiss: () => set({ activePanel: null }),
   setHoveredIsland: (id) => set({ hoveredIslandId: id }),
   setHoveredStructure: (id) => set({ hoveredStructureId: id }),

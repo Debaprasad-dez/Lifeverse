@@ -37,6 +37,8 @@ interface CompanionStore {
   send: (text: string) => Promise<void>;
   acceptQuest: (turnId: string) => void;
   dismissQuest: (turnId: string) => void;
+  /** Aria announces an event (e.g. a collectible found), no model call. */
+  pushAria: (text: string) => void;
 }
 
 let n = 0;
@@ -128,6 +130,15 @@ export const useCompanionStore = create<CompanionStore>((set, get) => ({
   dismissQuest: (turnId) => {
     set({
       turns: get().turns.map((t) => (t.id === turnId ? { ...t, quest: undefined } : t)),
+    });
+  },
+
+  pushAria: (text) => {
+    set({
+      turns: [...get().turns, { id: uid(), role: "aria", text }],
+      mood: "celebrate",
+      open: true,
+      greeted: true,
     });
   },
 }));

@@ -15,6 +15,7 @@ import Onboarding from "@/components/ui/Onboarding";
 import ControlsHelp from "@/components/ui/ControlsHelp";
 import CompanionPanel from "@/components/ui/CompanionPanel";
 import TimeDial from "@/components/ui/TimeDial";
+import CollectionPanel from "@/components/ui/panels/CollectionPanel";
 
 /**
  * Persistent chrome budget (hard rule): one brand chip, one time/compass
@@ -24,6 +25,7 @@ import TimeDial from "@/components/ui/TimeDial";
 export default function UIOverlay() {
   const settingsOpen = useUIStore((s) => s.activePanel?.kind === "settings");
   const timeOpen = useUIStore((s) => s.activePanel?.kind === "time");
+  const collectionOpen = useUIStore((s) => s.activePanel?.kind === "collection");
   const genesisPhase = useGenesisStore((s) => s.phase);
   return (
     <div className="pointer-events-none fixed inset-0 z-10 font-body">
@@ -33,17 +35,55 @@ export default function UIOverlay() {
       <CompanionOrb />
       <Hints />
       <ControlsHelp />
+      <CollectionChip />
       <CompanionPanel />
       <AnimatePresence>{settingsOpen && <SettingsSheet />}</AnimatePresence>
       <AnimatePresence>
         {timeOpen && <TimeDial onClose={() => useUIStore.getState().dismiss()} />}
       </AnimatePresence>
+      <AnimatePresence>{collectionOpen && <CollectionPanel />}</AnimatePresence>
       {genesisPhase === "asking" && <GenesisSheet />}
       <GenesisGate />
       <GenesisFlash />
       <Toast />
       <Onboarding />
     </div>
+  );
+}
+
+const EMPTY_COLLECTIBLES: never[] = [];
+
+/** Collection journal opener — bottom-left, shows found/total count. */
+function CollectionChip() {
+  // stable empty ref — a fresh [] in the selector would loop the store sub
+  const collectibles = useWorldStore(
+    (s) => (s.preview ?? s.state)?.collectibles ?? EMPTY_COLLECTIBLES
+  );
+  const open = useUIStore((s) => s.activePanel?.kind === "collection");
+  if (collectibles.length === 0) return null;
+  const found = collectibles.filter((c) => c.found).length;
+  return (
+    <motion.button
+      type="button"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.7, delay: 0.9, ease: "easeOut" }}
+      whileTap={{ scale: 0.92 }}
+      className="glass pointer-events-auto absolute bottom-5 left-[6.75rem] flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3"
+      title="Collection"
+      aria-label="Open collection"
+      onClick={() => {
+        const ui = useUIStore.getState();
+        if (ui.activePanel?.kind === "collection") ui.dismiss();
+        else ui.openCollection();
+      }}
+    >
+      <span className="text-sm leading-none text-aura-deep">✦</span>
+      <span className="font-label text-[0.66rem] font-bold text-ink-soft">
+        {found}/{collectibles.length}
+      </span>
+      {open && <span className="h-1.5 w-1.5 rounded-full bg-aura" />}
+    </motion.button>
   );
 }
 

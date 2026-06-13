@@ -248,6 +248,15 @@ export function buildGenesisWorld(answers: GenesisAnswers): WorldState {
     quests,
     memories: [],
     monuments: [],
+    collectibles: [
+      { id: "c-glow-fox", kind: "creature", name: "Glow Fox", islandId: "health", found: false },
+      { id: "c-book-owl", kind: "creature", name: "Book Owl", islandId: "learning", found: false },
+      { id: "c-coin-sprite", kind: "creature", name: "Coin Sprite", islandId: "finance", found: false },
+      { id: "c-muse-moth", kind: "creature", name: "Muse Moth", islandId: "creativity", found: false },
+      { id: "c-summit-ram", kind: "creature", name: "Summit Ram", islandId: "adventure", found: false },
+      { id: "c-star-relic", kind: "relic", name: "Star Relic", islandId: "career", found: false },
+      { id: "c-cloud-whale", kind: "creature", name: "Cloud Whale", found: false },
+    ],
     worldEvents: [],
   };
 }

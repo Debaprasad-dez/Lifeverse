@@ -47,6 +47,7 @@ import ContextualUI from "@/components/canvas/ContextualUI";
 import GrowthFX from "@/components/canvas/effects/GrowthFX";
 import BeaconLayer from "@/components/canvas/effects/BeaconLayer";
 import SeasonLayer from "@/components/canvas/effects/SeasonLayer";
+import CollectibleLayer from "@/components/canvas/effects/CollectibleLayer";
 import GrassField, { type GrassInstance } from "@/components/canvas/effects/GrassField";
 import ContactBlobs, { type BlobSpec } from "@/components/canvas/effects/ContactBlobs";
 import { useUIStore } from "@/stores/uiStore";
@@ -478,6 +479,7 @@ export default function WorldGraph() {
           <WeatherLayer state={state} built={data.islands} />
           <BeaconLayer state={state} built={data.islands} />
           <SeasonLayer season={state.season} />
+          {era === "present" && <CollectibleLayer state={state} built={data.islands} />}
           <GrowthFX anchors={pools.anchors} built={data.islands} />
         </>
       )}
