@@ -22,6 +22,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // standalone Vercel proxy — deployed separately, not part of the app
+    "proxy/**",
   ]),
 ]);
 

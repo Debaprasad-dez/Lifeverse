@@ -1,0 +1,6 @@
+{
+  "name": "lifeverse-ai-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone Vercel Edge Function that proxies LifeVerse AI calls to OpenRouter, keeping the API key server-side. Deployed to Vercel independently; the app itself stays on GitHub Pages."
+}
