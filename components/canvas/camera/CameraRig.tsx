@@ -96,13 +96,15 @@ export default function CameraRig() {
     if (!id) return;
     const jump = (): boolean => {
       const island = useWorldStore.getState().state?.islands.find((i) => i.id === id);
-      if (!island) return false;
+      if (!island || island.locked) return false;
       const center = islandCenter(island);
       target.current.set(...center);
       modeTarget.current.set(...center);
       sph.current.radius = 26;
       sph.current.polar = (68 * Math.PI) / 180;
       useCameraStore.getState().setMode("ORBIT_ISLAND");
+      useCameraStore.setState({ focusedIslandId: island.id });
+      useUIStore.getState().openIslandPanel(island.id);
       return true;
     };
     if (jump()) return;

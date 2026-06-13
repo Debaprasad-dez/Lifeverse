@@ -16,6 +16,7 @@ import StructureSheet from "@/components/ui/panels/StructureSheet";
 import QuestScroll from "@/components/ui/panels/QuestScroll";
 import MemoryForm from "@/components/ui/panels/MemoryForm";
 import LandmarkSheet from "@/components/ui/panels/LandmarkSheet";
+import ClampViewport from "@/components/ui/ClampViewport";
 
 interface ContextualUIProps {
   built: BuiltIsland[];
@@ -128,9 +129,11 @@ function PanelLayer({ built, anchors }: ContextualUIProps) {
         zIndexRange={[30, 10]}
         style={{ pointerEvents: "none" }}
       >
-        {panel.kind === "island" && <IslandPanel island={b.island} layout={b.layout} />}
-        {panel.kind === "quests" && <QuestScroll island={b.island} layout={b.layout} />}
-        {panel.kind === "memory-form" && <MemoryForm island={b.island} layout={b.layout} />}
+        <ClampViewport>
+          {panel.kind === "island" && <IslandPanel island={b.island} layout={b.layout} />}
+          {panel.kind === "quests" && <QuestScroll island={b.island} layout={b.layout} />}
+          {panel.kind === "memory-form" && <MemoryForm island={b.island} layout={b.layout} />}
+        </ClampViewport>
       </Html>
     );
   }
@@ -150,11 +153,13 @@ function PanelLayer({ built, anchors }: ContextualUIProps) {
       zIndexRange={[30, 10]}
       style={{ pointerEvents: "none" }}
     >
-      {anchor.kind === "structure" ? (
-        <StructureSheet anchor={anchor} layout={layout} />
-      ) : (
-        <LandmarkSheet anchor={anchor} layout={layout} />
-      )}
+      <ClampViewport>
+        {anchor.kind === "structure" ? (
+          <StructureSheet anchor={anchor} layout={layout} />
+        ) : (
+          <LandmarkSheet anchor={anchor} layout={layout} />
+        )}
+      </ClampViewport>
     </Html>
   );
 }
