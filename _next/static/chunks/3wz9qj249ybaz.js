@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,98518,e=>{"use strict";var r=e.i(71645);e.s(["default",0,function(){return(0,r.useEffect)(()=>{if(!("serviceWorker"in navigator))return;let e="/Lifeverse",r=`${e}/sw.js`;navigator.serviceWorker.register(r,{scope:`${e}/`}).catch(()=>{})},[]),null}])}]);
