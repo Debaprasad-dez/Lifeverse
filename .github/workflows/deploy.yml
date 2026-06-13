@@ -30,6 +30,10 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # Absolute URL of the Vercel AI proxy (set as a repo secret).
+          # Baked into the client bundle; the OpenRouter key stays server-side.
+          NEXT_PUBLIC_AI_PROXY: ${{ secrets.NEXT_PUBLIC_AI_PROXY }}
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3

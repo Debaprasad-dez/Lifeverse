@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { DEFAULT_SETTINGS, getLocal, setLocal, type Settings } from "@/lib/storage";
 import { clearApiKey, hasApiKey, storeApiKey } from "@/lib/crypto";
 import { MODEL_CHAIN } from "@/lib/ai/models";
+import { aiRoute, type AIRoute } from "@/lib/ai/client";
 import { useUIStore } from "@/stores/uiStore";
 import { useWorldStore } from "@/stores/worldStore";
 import { tryParseWorldState } from "@/engine/schema/world";
@@ -35,6 +36,7 @@ export default function SettingsSheet() {
   );
   const [keyInput, setKeyInput] = useState("");
   const [keySet, setKeySet] = useState(() => hasApiKey());
+  const [route, setRoute] = useState<AIRoute>(() => aiRoute());
   const [savedFlash, setSavedFlash] = useState(false);
 
   const update = (patch: Partial<Settings>): void => {
@@ -49,6 +51,7 @@ export default function SettingsSheet() {
     await storeApiKey(trimmed);
     setKeyInput("");
     setKeySet(true);
+    setRoute(aiRoute());
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 1600);
   };
@@ -75,21 +78,28 @@ export default function SettingsSheet() {
 
       <div className="mt-3 space-y-3">
         <div>
-          <Row label="OpenRouter key">
+          <Row label="AI companion">
             <span
               className={`rounded-full px-2 py-0.5 font-label text-[0.6rem] font-bold ${
-                keySet ? "bg-[#3faf6e] text-white" : "bg-white/70 text-ink-soft"
+                route === "none" ? "bg-white/70 text-ink-soft" : "bg-[#3faf6e] text-white"
               }`}
             >
-              {keySet ? "Stored ✓" : "Not set"}
+              {route === "byok" ? "Your key ✓" : route === "proxy" ? "Ready ✓" : "Offline"}
             </span>
           </Row>
+          <p className="mt-1 font-body text-[0.6rem] leading-snug text-ink-soft/80">
+            {route === "byok"
+              ? "Using your own OpenRouter key, stored encrypted in this browser."
+              : route === "proxy"
+                ? "Aria runs on the shared key — no setup needed. Add your own below to override."
+                : "No AI route configured. Add your own OpenRouter key below to enable Aria."}
+          </p>
           <div className="mt-1.5 flex gap-1.5">
             <input
               type="password"
               value={keyInput}
               onChange={(e) => setKeyInput(e.target.value)}
-              placeholder="sk-or-…"
+              placeholder="sk-or-… (optional)"
               autoComplete="off"
               className="min-w-0 flex-1 rounded-full border border-white/70 bg-white/70 px-3 py-1 font-body text-[0.7rem] text-ink outline-none placeholder:text-ink-soft/50"
             />
@@ -104,14 +114,12 @@ export default function SettingsSheet() {
               onClick={() => {
                 clearApiKey();
                 setKeySet(false);
+                setRoute(aiRoute());
               }}
             >
               Forget key
             </button>
           )}
-          <p className="mt-1 font-body text-[0.6rem] leading-snug text-ink-soft/80">
-            Encrypted in this browser. Sent only to OpenRouter.
-          </p>
         </div>
 
         <Row label="Model">

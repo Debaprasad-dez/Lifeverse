@@ -6,12 +6,14 @@ import { useUIStore } from "@/stores/uiStore";
 import { useLifeStore } from "@/stores/lifeStore";
 import { useGenesisStore } from "@/stores/genesisStore";
 import { useWorldStore } from "@/stores/worldStore";
+import { useCompanionStore, type CompanionMood } from "@/stores/companionStore";
 import { DEFAULT_FLAGS, getLocal, setLocal } from "@/lib/storage";
 import { on } from "@/lib/events";
 import SettingsSheet from "@/components/ui/panels/SettingsSheet";
 import GenesisSheet from "@/components/ui/panels/GenesisSheet";
 import Onboarding from "@/components/ui/Onboarding";
 import ControlsHelp from "@/components/ui/ControlsHelp";
+import CompanionPanel from "@/components/ui/CompanionPanel";
 
 /**
  * Persistent chrome budget (hard rule): one brand chip, one time/compass
@@ -28,6 +30,7 @@ export default function UIOverlay() {
       <CompanionOrb />
       <Hints />
       <ControlsHelp />
+      <CompanionPanel />
       <AnimatePresence>{settingsOpen && <SettingsSheet />}</AnimatePresence>
       {genesisPhase === "asking" && <GenesisSheet />}
       <GenesisGate />
@@ -175,7 +178,17 @@ function TimeCompass() {
   );
 }
 
+const ORB_TINT: Record<CompanionMood, { mid: string; deep: string; glow: string }> = {
+  celebrate: { mid: "rgba(255,184,77,0.9)", deep: "rgba(200,120,0,0.9)", glow: "255,184,77" },
+  encourage: { mid: "rgba(79,195,247,0.88)", deep: "rgba(0,102,136,0.9)", glow: "79,195,247" },
+  advise: { mid: "rgba(179,157,219,0.9)", deep: "rgba(94,68,160,0.9)", glow: "179,157,219" },
+  neutral: { mid: "rgba(159,217,192,0.88)", deep: "rgba(20,120,100,0.9)", glow: "159,217,192" },
+};
+
 function CompanionOrb() {
+  const mood = useCompanionStore((s) => s.mood);
+  const thinking = useCompanionStore((s) => s.thinking);
+  const t = ORB_TINT[mood];
   return (
     <motion.button
       type="button"
@@ -186,19 +199,18 @@ function CompanionOrb() {
       whileTap={{ scale: 0.92 }}
       className="pointer-events-auto absolute bottom-5 right-5 h-14 w-14 cursor-pointer rounded-full border border-white/70"
       style={{
-        background:
-          "radial-gradient(circle at 32% 30%, rgba(255,255,255,0.95), rgba(79,195,247,0.85) 45%, rgba(0,102,136,0.9))",
-        boxShadow:
-          "0 0 24px rgba(79,195,247,0.65), 0 0 60px rgba(79,195,247,0.25), 0 6px 18px rgba(0,102,136,0.35)",
+        background: `radial-gradient(circle at 32% 30%, rgba(255,255,255,0.95), ${t.mid} 45%, ${t.deep})`,
+        boxShadow: `0 0 24px rgba(${t.glow},0.65), 0 0 60px rgba(${t.glow},0.25), 0 6px 18px rgba(0,102,136,0.35)`,
       }}
-      title="Companion — awakens in a later phase"
+      title="Talk to Aria"
       aria-label="AI companion"
+      onClick={() => useCompanionStore.getState().toggle()}
     >
       <motion.span
         className="absolute inset-0 rounded-full"
         style={{ boxShadow: "inset 0 0 14px rgba(255,255,255,0.8)" }}
-        animate={{ opacity: [0.6, 1, 0.6] }}
-        transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
+        animate={{ opacity: thinking ? [0.4, 1, 0.4] : [0.6, 1, 0.6] }}
+        transition={{ duration: thinking ? 1 : 3.2, repeat: Infinity, ease: "easeInOut" }}
       />
     </motion.button>
   );
