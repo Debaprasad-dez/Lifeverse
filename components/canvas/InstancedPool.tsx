@@ -29,6 +29,7 @@ interface InstancedPoolProps {
   onPointerOver?: (e: ThreeEvent<PointerEvent>) => void;
   onPointerOut?: (e: ThreeEvent<PointerEvent>) => void;
   onClick?: (e: ThreeEvent<MouseEvent>) => void;
+  onDoubleClick?: (e: ThreeEvent<MouseEvent>) => void;
 }
 
 const m = new Matrix4();
@@ -47,6 +48,7 @@ export default function InstancedPool({
   onPointerOver,
   onPointerOut,
   onClick,
+  onDoubleClick,
 }: InstancedPoolProps) {
   const ref = useRef<InstancedMesh>(null);
 
@@ -83,6 +85,7 @@ export default function InstancedPool({
       onPointerOver={onPointerOver}
       onPointerOut={onPointerOut}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
     />
   );
 }

@@ -24,6 +24,7 @@ import {
 } from "@/engine/resolver/layout";
 import { SLOT_MAPS, SIZE_SCALE } from "@/engine/resolver/slots";
 import { resolveStructures, slotLocalXZ } from "@/engine/resolver/resolve";
+import { gateFrame } from "@/engine/generation/structures/gate";
 import { islandAnalytics } from "@/engine/resolver/analytics";
 import {
   CORE_KINGDOM_IDS,
@@ -46,6 +47,7 @@ import HoverMarker from "@/components/canvas/HoverMarker";
 import ContextualUI from "@/components/canvas/ContextualUI";
 import GrowthFX from "@/components/canvas/effects/GrowthFX";
 import BeaconLayer from "@/components/canvas/effects/BeaconLayer";
+import GateLayer from "@/components/canvas/effects/GateLayer";
 import SeasonLayer from "@/components/canvas/effects/SeasonLayer";
 import CollectibleLayer from "@/components/canvas/effects/CollectibleLayer";
 import GrassField, { type GrassInstance } from "@/components/canvas/effects/GrassField";
@@ -73,6 +75,8 @@ interface Archipelago {
   canopies: PoolInstance[];
   grass: GrassInstance[];
   flowers: PoolInstance[];
+  boulders: PoolInstance[];
+  shrubs: PoolInstance[];
   blobs: BlobSpec[];
   waterfalls: { lip: Vector3; dir: Vector3; style: WaterfallStyle }[];
 }
@@ -100,6 +104,8 @@ function buildArchipelago(state: WorldState): Archipelago {
     canopies: [],
     grass: [],
     flowers: [],
+    boulders: [],
+    shrubs: [],
     blobs: [],
     waterfalls: [],
   };
@@ -159,6 +165,8 @@ function buildArchipelago(state: WorldState): Archipelago {
       const { x, z } = slotLocalXZ(geom, slot);
       return { x, z, r: 2.4 * SIZE_SCALE[slot.size] };
     });
+    // keep the arc gate's threshold + approach clear of flora and rocks
+    avoid.push(gateFrame(island, geom, radius).keepOut);
     if (layout.hasWaterfall) {
       avoid.push({ x: geom.waterfall.lip.x, z: geom.waterfall.lip.z, r: 3.2 });
       out.waterfalls.push({
@@ -249,6 +257,56 @@ function buildArchipelago(state: WorldState): Archipelago {
         color: FLOWER_COLORS[Math.floor(flowerRng() * FLOWER_COLORS.length)],
       });
     }
+
+    // ---- weathered boulders: ground the rim, sparse so focus stays on
+    // structures. A few wear moss where the meadow is healthy. ----------------
+    const rockRng = mulberry32(seed ^ 0xb01de);
+    const boulderLocals: { x: number; z: number; r: number }[] = [];
+    for (const r of scatterOnCap(seed ^ 0xb01de, geom, {
+      count: Math.round(5 + island.level * 0.35),
+      minDistance: 3.2,
+      radialMin: 0.45,
+      radialMax: 0.9,
+      maxSlope: 1.5,
+      scaleRange: [0.7, 1.7],
+      avoid,
+    })) {
+      const s = r.scale;
+      cA.set(PALETTE.rockUnder).lerp(cB.set(PALETTE.cliffWarm), rockRng());
+      if (rockRng() < 0.35) cA.lerp(cB.set(PALETTE.grassDeep), 0.4); // mossy
+      out.boulders.push({
+        position: [ix + r.x, iy + r.y + s * 0.18, iz + r.z],
+        rotation: [rockRng() * 0.4 - 0.2, r.rotationY, rockRng() * 0.4 - 0.2],
+        scale: [s * (0.9 + rockRng() * 0.4), s * (0.6 + rockRng() * 0.3), s * (0.9 + rockRng() * 0.4)],
+        color: `#${cA.getHexString()}`,
+      });
+      out.blobs.push({ position: [ix + r.x, iy + r.y + 0.06, iz + r.z], radius: s * 1.1 });
+      boulderLocals.push({ x: r.x, z: r.z, r: s * 1.2 });
+    }
+
+    // ---- shrubs: a mid-layer between grass and trees so the cap reads full
+    // without crowding. Density tracks ecosystem flora. ----------------------
+    const shrubRng = mulberry32(seed ^ 0x5417b);
+    for (const sh of scatterOnCap(seed ^ 0x5417b, geom, {
+      count: Math.round(3 + flora * 8),
+      minDistance: 2.2,
+      radialMax: 0.86,
+      maxSlope: 0.85,
+      scaleRange: [0.6, 1.15],
+      avoid: [...avoid, ...boulderLocals],
+    })) {
+      const s = sh.scale;
+      out.shrubs.push({
+        position: [ix + sh.x, iy + sh.y + s * 0.28, iz + sh.z],
+        rotation: [0, sh.rotationY, 0],
+        scale: [s * 0.85, s * 0.62, s * 0.85],
+        color: vitalityTint(
+          shrubRng() < 0.5 ? PALETTE.canopyDeep : PALETTE.canopyLight,
+          sat,
+          shrubRng()
+        ),
+      });
+    }
   }
 
   return out;
@@ -258,6 +316,7 @@ const GEOS = {
   stalactite: new ConeGeometry(1, 1, 5, 1),
   trunk: new CylinderGeometry(0.14, 0.24, 1, 6),
   canopy: new IcosahedronGeometry(1, 1),
+  boulder: new IcosahedronGeometry(1, 0),
   grassTuft: new ConeGeometry(0.1, 0.5, 5, 1),
   flower: new SphereGeometry(0.075, 6, 5),
   box: new BoxGeometry(1, 1, 1),
@@ -440,6 +499,28 @@ export default function WorldGraph() {
             })}
             instances={data.flowers}
           />
+          <InstancedPool
+            geometry={GEOS.boulder}
+            material={getToonMaterial("boulder", {
+              flatShading: true,
+              rimColor: "#fff0d6",
+              rimStrength: 0.24,
+            })}
+            instances={data.boulders}
+            castShadow
+            receiveShadow
+          />
+          <InstancedPool
+            geometry={GEOS.canopy}
+            material={getToonMaterial("canopy", {
+              flatShading: true,
+              rimStrength: 0.46,
+              rimColor: "#ffeec2",
+            })}
+            instances={data.shrubs}
+            castShadow
+            receiveShadow
+          />
 
           {PRIM_KINDS.map((kind) => (
             <InstancedPool
@@ -475,6 +556,7 @@ export default function WorldGraph() {
           ))}
 
           <BridgeLayer state={state} />
+          <GateLayer built={data.islands} />
           <AmbientLife state={state} built={data.islands} />
           <WeatherLayer state={state} built={data.islands} />
           <BeaconLayer state={state} built={data.islands} />
