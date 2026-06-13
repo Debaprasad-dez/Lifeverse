@@ -1,0 +1,19 @@
+{
+  "name": "LifeVerse",
+  "short_name": "LifeVerse",
+  "description": "Your life, a living world of floating kingdoms.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#9ed4ff",
+  "theme_color": "#9ed4ff",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -16,6 +16,7 @@ import ControlsHelp from "@/components/ui/ControlsHelp";
 import CompanionPanel from "@/components/ui/CompanionPanel";
 import TimeDial from "@/components/ui/TimeDial";
 import CollectionPanel from "@/components/ui/panels/CollectionPanel";
+import LiveRegion from "@/components/ui/LiveRegion";
 
 /**
  * Persistent chrome budget (hard rule): one brand chip, one time/compass
@@ -29,6 +30,7 @@ export default function UIOverlay() {
   const genesisPhase = useGenesisStore((s) => s.phase);
   return (
     <div className="pointer-events-none fixed inset-0 z-10 font-body">
+      <LiveRegion />
       <EraOverlay />
       <BrandChip />
       <TimeCompass />

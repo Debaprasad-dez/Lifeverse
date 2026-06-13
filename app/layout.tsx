@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Be_Vietnam_Pro, Quicksand } from "next/font/google";
 import "./globals.css";
+import PWARegister from "@/components/PWARegister";
 
 const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
@@ -18,9 +19,14 @@ const quicksand = Quicksand({
   subsets: ["latin"],
 });
 
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
 export const metadata: Metadata = {
   title: "LifeVerse",
   description: "Your life, a living world of floating kingdoms.",
+  manifest: `${BASE}/manifest.webmanifest`,
+  appleWebApp: { capable: true, title: "LifeVerse", statusBarStyle: "default" },
+  icons: { icon: `${BASE}/icon.svg`, apple: `${BASE}/icon.svg` },
 };
 
 export const viewport: Viewport = {
@@ -41,7 +47,10 @@ export default function RootLayout({
       lang="en"
       className={`${jakarta.variable} ${vietnam.variable} ${quicksand.variable} h-full antialiased`}
     >
-      <body className="h-full">{children}</body>
+      <body className="h-full">
+        <PWARegister />
+        {children}
+      </body>
     </html>
   );
 }

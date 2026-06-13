@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="sky" cx="50%" cy="38%" r="75%">
+      <stop offset="0%" stop-color="#bfe6ff"/>
+      <stop offset="100%" stop-color="#6db7e8"/>
+    </radialGradient>
+    <linearGradient id="grass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8ed36b"/>
+      <stop offset="100%" stop-color="#5aa84b"/>
+    </linearGradient>
+    <linearGradient id="rock" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#caa06a"/>
+      <stop offset="100%" stop-color="#8a6a44"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#sky)"/>
+  <ellipse cx="150" cy="150" rx="70" ry="26" fill="#ffffff" opacity="0.65"/>
+  <ellipse cx="372" cy="118" rx="54" ry="20" fill="#ffffff" opacity="0.55"/>
+  <!-- floating island -->
+  <path d="M150 300 q106 -52 212 0 l-30 70 q-76 34 -152 0 z" fill="url(#rock)"/>
+  <path d="M150 300 q106 -46 212 0 q-106 42 -212 0 z" fill="url(#grass)"/>
+  <path d="M256 372 l0 70 q-10 22 0 40 q10 -18 0 -40 z" fill="#bfe9ff" opacity="0.85"/>
+  <!-- trees -->
+  <circle cx="218" cy="276" r="26" fill="#4f9e42"/>
+  <circle cx="262" cy="266" r="32" fill="#5cb050"/>
+  <circle cx="306" cy="280" r="24" fill="#4f9e42"/>
+  <!-- aura orb -->
+  <circle cx="372" cy="356" r="30" fill="#ffe08a"/>
+  <circle cx="372" cy="356" r="30" fill="#fff4c2" opacity="0.5"/>
+</svg>

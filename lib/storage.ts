@@ -15,6 +15,8 @@ export interface Flags {
   onboarded: boolean;
   hintsSeen: boolean;
   genesisDone: boolean;
+  /** Local entitlement (no payments yet) — unlocks deep future sims etc. */
+  premium: boolean;
 }
 
 interface LocalSchema {
@@ -34,6 +36,7 @@ export const DEFAULT_FLAGS: Flags = {
   onboarded: false,
   hintsSeen: false,
   genesisDone: false,
+  premium: false,
 };
 
 const PREFIX = "lifeverse:";

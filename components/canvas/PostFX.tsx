@@ -5,7 +5,7 @@ import { useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer, ToneMapping, Vignette } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
 import { N8AOPostPass } from "n8ao";
-import { DEFAULT_SETTINGS, getLocal } from "@/lib/storage";
+import { aoEnabled } from "@/lib/quality";
 
 /**
  * Single composer. N8AO grounds every contact (the "rendered film frame"
@@ -15,8 +15,7 @@ import { DEFAULT_SETTINGS, getLocal } from "@/lib/storage";
  */
 export default function PostFX() {
   const { scene, camera, size } = useThree();
-  const quality = getLocal("settings", DEFAULT_SETTINGS).quality;
-  const ao = quality !== "low";
+  const ao = aoEnabled();
 
   const aoPass = useMemo(() => {
     if (!ao) return null;

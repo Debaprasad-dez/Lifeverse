@@ -13,6 +13,7 @@ import WorldGraph from "@/components/canvas/WorldGraph";
 import CameraRig from "@/components/canvas/camera/CameraRig";
 import { dismissContextual } from "@/components/canvas/ContextualUI";
 import { useUIStore } from "@/stores/uiStore";
+import { tierDpr } from "@/lib/quality";
 
 const initialPosition: [number, number, number] = (() => {
   const { radius, azimuth, polar } = CAMERA.initial;
@@ -30,12 +31,14 @@ export default function WorldCanvas() {
   const [debug] = useState(
     () => typeof window !== "undefined" && window.location.search.includes("debug=1")
   );
+  // resolve the GPU tier once at mount (auto → detected) for the dpr cap
+  const [dpr] = useState<[number, number]>(() => tierDpr());
 
   return (
     <Canvas
       flat
       shadows
-      dpr={[1, 2]}
+      dpr={dpr}
       camera={{
         fov: CAMERA.fov,
         near: CAMERA.near,

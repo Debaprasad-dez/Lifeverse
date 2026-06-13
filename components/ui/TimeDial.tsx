@@ -7,8 +7,14 @@ import { tryParseWorldState } from "@/engine/schema/world";
 import { projectFuture } from "@/engine/futureSim";
 import { useWorldStore } from "@/stores/worldStore";
 import { useLifeStore } from "@/stores/lifeStore";
+import { DEFAULT_FLAGS, getLocal } from "@/lib/storage";
 
-const FUTURE_OPTIONS = [3, 6, 12] as const;
+// 3/6mo free; 12mo+ deep sims are a premium scaffold (local flag, no payments)
+const FUTURE_OPTIONS: { months: number; premium: boolean }[] = [
+  { months: 3, premium: false },
+  { months: 6, premium: false },
+  { months: 12, premium: true },
+];
 
 function whenLabel(iso: string): string {
   const d = new Date(iso);
@@ -24,6 +30,8 @@ export default function TimeDial({ onClose }: { onClose: () => void }) {
   const era = useWorldStore((s) => s.era);
   const [stamps, setStamps] = useState<string[]>([]);
   const [idx, setIdx] = useState<number>(-1); // -1 = present
+  const [upsell, setUpsell] = useState(false);
+  const premium = getLocal("flags", DEFAULT_FLAGS).premium;
 
   useEffect(() => {
     void listSnapshots().then((all) => {
@@ -45,11 +53,16 @@ export default function TimeDial({ onClose }: { onClose: () => void }) {
     if (parsed) useWorldStore.getState().setPreview({ ...parsed, era: "past" }, "past");
   };
 
-  const glimpse = (months: number): void => {
+  const glimpse = (opt: { months: number; premium: boolean }): void => {
+    if (opt.premium && !premium) {
+      setUpsell(true);
+      setTimeout(() => setUpsell(false), 3200);
+      return;
+    }
     const state = useWorldStore.getState().state;
     if (!state) return;
     const events = useLifeStore.getState().events;
-    useWorldStore.getState().setPreview(projectFuture(state, events, months), "simulated");
+    useWorldStore.getState().setPreview(projectFuture(state, events, opt.months), "simulated");
   };
 
   const returnNow = (): void => {
@@ -130,17 +143,23 @@ export default function TimeDial({ onClose }: { onClose: () => void }) {
           A projection from your recent habits — where this world is heading.
         </p>
         <div className="flex gap-1.5">
-          {FUTURE_OPTIONS.map((m) => (
+          {FUTURE_OPTIONS.map((o) => (
             <button
-              key={m}
+              key={o.months}
               type="button"
               className="pill-btn secondary"
-              onClick={() => glimpse(m)}
+              onClick={() => glimpse(o)}
             >
-              +{m}mo
+              +{o.months}mo {o.premium && !premium ? "🔒" : ""}
             </button>
           ))}
         </div>
+        {upsell && (
+          <p className="mt-2 font-body text-[0.62rem] leading-snug text-aura-deep">
+            Deep future sims (12mo+, alternate paths) are a premium feature —
+            coming soon. The core world is always free.
+          </p>
+        )}
       </div>
     </motion.div>
   );
