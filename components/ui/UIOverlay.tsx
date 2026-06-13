@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useUIStore } from "@/stores/uiStore";
 import { useLifeStore } from "@/stores/lifeStore";
 import { useGenesisStore } from "@/stores/genesisStore";
-import { useWorldStore } from "@/stores/worldStore";
+import { useWorldStore, type Era } from "@/stores/worldStore";
 import { useCompanionStore, type CompanionMood } from "@/stores/companionStore";
 import { DEFAULT_FLAGS, getLocal, setLocal } from "@/lib/storage";
 import { on } from "@/lib/events";
@@ -14,6 +14,7 @@ import GenesisSheet from "@/components/ui/panels/GenesisSheet";
 import Onboarding from "@/components/ui/Onboarding";
 import ControlsHelp from "@/components/ui/ControlsHelp";
 import CompanionPanel from "@/components/ui/CompanionPanel";
+import TimeDial from "@/components/ui/TimeDial";
 
 /**
  * Persistent chrome budget (hard rule): one brand chip, one time/compass
@@ -22,9 +23,11 @@ import CompanionPanel from "@/components/ui/CompanionPanel";
  */
 export default function UIOverlay() {
   const settingsOpen = useUIStore((s) => s.activePanel?.kind === "settings");
+  const timeOpen = useUIStore((s) => s.activePanel?.kind === "time");
   const genesisPhase = useGenesisStore((s) => s.phase);
   return (
     <div className="pointer-events-none fixed inset-0 z-10 font-body">
+      <EraOverlay />
       <BrandChip />
       <TimeCompass />
       <CompanionOrb />
@@ -32,12 +35,48 @@ export default function UIOverlay() {
       <ControlsHelp />
       <CompanionPanel />
       <AnimatePresence>{settingsOpen && <SettingsSheet />}</AnimatePresence>
+      <AnimatePresence>
+        {timeOpen && <TimeDial onClose={() => useUIStore.getState().dismiss()} />}
+      </AnimatePresence>
       {genesisPhase === "asking" && <GenesisSheet />}
       <GenesisGate />
       <GenesisFlash />
       <Toast />
       <Onboarding />
     </div>
+  );
+}
+
+/** Sepia (past) / ethereal-blue (future) wash + banner while time-travelling. */
+function EraOverlay() {
+  const era = useWorldStore((s) => s.era);
+  const tint =
+    era === "past"
+      ? "rgba(120,86,40,0.16)"
+      : era === "simulated"
+        ? "rgba(90,150,220,0.16)"
+        : "transparent";
+  return (
+    <AnimatePresence>
+      {era !== "present" && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+          className="pointer-events-none absolute inset-0"
+          style={{ background: tint, boxShadow: "inset 0 0 180px rgba(0,0,0,0.22)" }}
+        >
+          <button
+            type="button"
+            className="glass pointer-events-auto absolute left-1/2 top-5 -translate-x-1/2 px-4 py-1.5 font-label text-xs font-bold uppercase tracking-wider text-ink"
+            onClick={() => useWorldStore.getState().clearPreview()}
+          >
+            {era === "past" ? "↩ Viewing the past — return to now" : "✨ Possible future — return to now"}
+          </button>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -158,23 +197,49 @@ function BrandChip() {
   );
 }
 
+const ERA_LABEL: Record<Era, string> = {
+  past: "The Past",
+  present: "Golden Hour",
+  simulated: "The Future",
+};
+
 function TimeCompass() {
+  const timeOpen = useUIStore((s) => s.activePanel?.kind === "time");
+  const era = useWorldStore((s) => s.era);
+  const season = useWorldStore((s) => (s.preview ?? s.state)?.season);
+  const label =
+    era === "present"
+      ? season
+        ? `${season[0].toUpperCase()}${season.slice(1)}`
+        : ERA_LABEL.present
+      : ERA_LABEL[era];
+
   return (
-    <motion.div
+    <motion.button
+      type="button"
       initial={{ opacity: 0, y: -12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.7, delay: 0.45, ease: "easeOut" }}
-      className="glass pointer-events-auto absolute right-4 top-4 flex items-center gap-2 px-3.5 py-2"
-      title="Time travel — coming soon"
+      whileTap={{ scale: 0.95 }}
+      className={`glass pointer-events-auto absolute right-4 top-4 flex cursor-pointer items-center gap-2 px-3.5 py-2 ${
+        era !== "present" ? "ring-2 ring-aura/60" : ""
+      }`}
+      title="Time travel"
+      onClick={() => {
+        const ui = useUIStore.getState();
+        if (ui.activePanel?.kind === "time") ui.dismiss();
+        else ui.openTime();
+      }}
     >
       <svg width="15" height="15" viewBox="0 0 24 24" className="text-ink-soft">
         <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2" />
         <path d="M15.5 8.5 13 13l-4.5 2.5L11 11z" fill="currentColor" />
       </svg>
       <span className="font-label text-xs font-semibold tracking-wider text-ink-soft uppercase">
-        Golden Hour
+        {label}
       </span>
-    </motion.div>
+      {timeOpen && <span className="h-1.5 w-1.5 rounded-full bg-aura" />}
+    </motion.button>
   );
 }
 

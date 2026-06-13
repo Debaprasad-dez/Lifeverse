@@ -46,6 +46,7 @@ import HoverMarker from "@/components/canvas/HoverMarker";
 import ContextualUI from "@/components/canvas/ContextualUI";
 import GrowthFX from "@/components/canvas/effects/GrowthFX";
 import BeaconLayer from "@/components/canvas/effects/BeaconLayer";
+import SeasonLayer from "@/components/canvas/effects/SeasonLayer";
 import GrassField, { type GrassInstance } from "@/components/canvas/effects/GrassField";
 import ContactBlobs, { type BlobSpec } from "@/components/canvas/effects/ContactBlobs";
 import { useUIStore } from "@/stores/uiStore";
@@ -272,7 +273,10 @@ const glowMaterial = new MeshBasicMaterial({ toneMapped: false });
 
 /** The whole data-driven world: islands, flora, structures, life, weather. */
 export default function WorldGraph() {
-  const state = useWorldStore((s) => s.state);
+  // render the temporal overlay (time-travel / future sim) if present, else
+  // the live present — one extra key in geoKey keeps geometry in sync
+  const state = useWorldStore((s) => s.preview ?? s.state);
+  const era = useWorldStore((s) => s.era);
   const genesisPhase = useGenesisStore((s) => s.phase);
   const dressed = genesisPhase === "idle" || genesisPhase === "done";
 
@@ -283,7 +287,8 @@ export default function WorldGraph() {
   // Geometry rebuilds only when something structural changes — level
   // (radius), lock state, flora/vitality, or the seed itself.
   const geoKey = state
-    ? state.worldSeed +
+    ? era +
+      state.worldSeed +
       state.islands
         .map(
           (i) =>
@@ -472,6 +477,7 @@ export default function WorldGraph() {
           <AmbientLife state={state} built={data.islands} />
           <WeatherLayer state={state} built={data.islands} />
           <BeaconLayer state={state} built={data.islands} />
+          <SeasonLayer season={state.season} />
           <GrowthFX anchors={pools.anchors} built={data.islands} />
         </>
       )}

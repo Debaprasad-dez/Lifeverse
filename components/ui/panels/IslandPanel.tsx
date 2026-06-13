@@ -30,6 +30,7 @@ interface IslandPanelProps {
 /** Contextual kingdom panel — anchored beside the island, never a page. */
 export default function IslandPanel({ island, layout }: IslandPanelProps) {
   const mode = useCameraStore((s) => s.mode);
+  const present = useWorldStore((s) => s.era === "present");
   const questCount =
     useWorldStore(
       (s) =>
@@ -63,7 +64,7 @@ export default function IslandPanel({ island, layout }: IslandPanelProps) {
         <Tube label="Radiance" value={island.lightingIntensity} color="#fdd34d" />
       </div>
 
-      {mode !== "ORBIT_WORLD" && (
+      {mode !== "ORBIT_WORLD" && present && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {(KINGDOM_ACTIONS[island.id as CoreKingdomId] ?? []).map((kind) => (
             <button

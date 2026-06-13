@@ -85,6 +85,12 @@ export async function loadLatestSnapshot(): Promise<WorldSnapshot | undefined> {
   return cursor?.value;
 }
 
+/** All snapshot timestamps, chronological — the time-travel dial's stops. */
+export async function listSnapshots(): Promise<string[]> {
+  const db = await getDB();
+  return (await db.getAllKeys("snapshots")).map(String).sort();
+}
+
 /** Keep the last KEEP_RECENT; compact older-than-48h to one per day. */
 export async function pruneSnapshots(): Promise<void> {
   const db = await getDB();

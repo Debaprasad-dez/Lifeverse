@@ -13,6 +13,7 @@ export type ActivePanel =
   | { kind: "quests"; islandId: string }
   | { kind: "memory-form"; islandId: string }
   | { kind: "settings" }
+  | { kind: "time" }
   | null;
 
 interface UIStore {
@@ -30,6 +31,7 @@ interface UIStore {
   openQuestScroll: (islandId: string) => void;
   openMemoryForm: (islandId: string) => void;
   openSettings: () => void;
+  openTime: () => void;
   dismiss: () => void;
   setHoveredIsland: (id: string | null) => void;
   setHoveredStructure: (id: string | null) => void;
@@ -53,6 +55,7 @@ export const useUIStore = create<UIStore>((set) => ({
   openQuestScroll: (islandId) => set({ activePanel: { kind: "quests", islandId } }),
   openMemoryForm: (islandId) => set({ activePanel: { kind: "memory-form", islandId } }),
   openSettings: () => set({ activePanel: { kind: "settings" } }),
+  openTime: () => set({ activePanel: { kind: "time" } }),
   dismiss: () => set({ activePanel: null }),
   setHoveredIsland: (id) => set({ hoveredIslandId: id }),
   setHoveredStructure: (id) => set({ hoveredStructureId: id }),

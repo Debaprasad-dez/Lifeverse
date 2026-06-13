@@ -115,7 +115,7 @@ function HoverTips({ built, anchors }: ContextualUIProps) {
 function PanelLayer({ built, anchors }: ContextualUIProps) {
   const panel = useUIStore((s) => s.activePanel);
 
-  if (!panel || panel.kind === "settings") return null;
+  if (!panel || panel.kind === "settings" || panel.kind === "time") return null;
 
   // island-top anchored panels (island, quests, memory form)
   if (panel.kind === "island" || panel.kind === "quests" || panel.kind === "memory-form") {

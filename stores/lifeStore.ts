@@ -60,6 +60,13 @@ export const useLifeStore = create<LifeStore>((set, get) => ({
   logEvent: (kind) => {
     const world = useWorldStore.getState();
     if (!world.state) return;
+    // time-travel / future views are read-only — no check-ins there
+    if (world.era !== "present") {
+      set({ toast: "You can only shape the present. Return to now to check in." });
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => set({ toast: null }), 3000);
+      return;
+    }
 
     const now = new Date();
     const event: LifeEvent = { kind, at: now.toISOString() };

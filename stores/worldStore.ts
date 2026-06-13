@@ -14,15 +14,28 @@ import { emit } from "@/lib/events";
 
 const AUTOSAVE_DEBOUNCE_MS = 1500;
 
+export type Era = "past" | "present" | "simulated";
+
 interface WorldStore {
   state: WorldState | null;
   hydrated: boolean;
   /** Where the booted world came from (genesis gating reads this). */
   bootSource: "snapshot" | "fixture" | null;
+  /**
+   * Read-only temporal overlay. When set, the world RENDERS this instead of
+   * `state` (time-travel to a past snapshot, or a future projection). The
+   * live present in `state` is untouched; check-ins are blocked meanwhile.
+   */
+  preview: WorldState | null;
+  era: Era;
   boot: () => Promise<void>;
   applyDeltas: (deltas: WorldDelta[]) => void;
   /** Full replacement (genesis, import). Validates and snapshots. */
   replaceState: (next: WorldState) => void;
+  /** Enter a read-only era view (past snapshot / future sim). */
+  setPreview: (next: WorldState, era: Exclude<Era, "present">) => void;
+  /** Return to the live present. */
+  clearPreview: () => void;
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -44,6 +57,8 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
   state: null,
   hydrated: false,
   bootSource: null,
+  preview: null,
+  era: "present",
 
   boot: async () => {
     if (get().hydrated) return;
@@ -85,7 +100,21 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
   replaceState: (next) => {
     const parsed = tryParseWorldState(next);
     if (!parsed) return;
-    set({ state: parsed, hydrated: true });
+    // a genesis/import replaces the present and ends any time-travel
+    set({ state: parsed, hydrated: true, preview: null, era: "present" });
     scheduleSnapshot(() => get().state);
   },
+
+  setPreview: (next, era) => {
+    const parsed = tryParseWorldState(next);
+    if (!parsed) return;
+    set({ preview: parsed, era });
+  },
+
+  clearPreview: () => set({ preview: null, era: "present" }),
 }));
+
+/** The state to RENDER: the temporal overlay if any, else the live present. */
+export function displayState(s: WorldStore): WorldState | null {
+  return s.preview ?? s.state;
+}
