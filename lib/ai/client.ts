@@ -25,7 +25,11 @@ export interface ChatOptions {
 
 export class AIUnavailableError extends Error {}
 
-const PROXY_URL = process.env.NEXT_PUBLIC_AI_PROXY ?? "";
+// The deployed standalone Vercel proxy (holds the key server-side). The URL
+// is public and safe to bake; override via NEXT_PUBLIC_AI_PROXY if you fork
+// the proxy. The OpenRouter key lives only in that proxy's Vercel env.
+const DEFAULT_PROXY = "https://proxy-xi-pied.vercel.app/api/chat";
+const PROXY_URL = process.env.NEXT_PUBLIC_AI_PROXY || DEFAULT_PROXY;
 
 /** Preferred model first, then the rest of the chain (deduped). */
 function modelOrder(): string[] {
@@ -72,7 +76,7 @@ async function viaDirectKey(
       if (opts.json) body.response_format = { type: "json_object" };
 
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 28000);
+      const timer = setTimeout(() => controller.abort(), 11000);
       const r = await fetch(OPENROUTER_URL, {
         method: "POST",
         headers: {

@@ -92,8 +92,19 @@ export default async function handler(req: Request): Promise<Response> {
   const temperature = typeof payload.temperature === "number" ? payload.temperature : 0.8;
   const maxTokens = typeof payload.maxTokens === "number" ? payload.maxTokens : 700;
 
+  // Vercel Edge functions must respond within ~25s. Bound the whole chain
+  // well under that: short per-model timeout + a global deadline. If we run
+  // out of budget we return a quick error and the app falls back locally.
+  const started = Date.now();
+  const GLOBAL_DEADLINE_MS = 20000;
+  const PER_MODEL_MS = 9000;
+
   let lastErr = "all_models_failed";
   for (const model of models) {
+    if (Date.now() - started > GLOBAL_DEADLINE_MS - 1500) {
+      lastErr = "deadline";
+      break;
+    }
     try {
       const body: Record<string, unknown> = {
         model,
@@ -103,8 +114,12 @@ export default async function handler(req: Request): Promise<Response> {
       };
       if (payload.json) body.response_format = { type: "json_object" };
 
+      const remaining = GLOBAL_DEADLINE_MS - (Date.now() - started);
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 28000);
+      const timer = setTimeout(
+        () => controller.abort(),
+        Math.max(2000, Math.min(PER_MODEL_MS, remaining))
+      );
       const r = await fetch(OPENROUTER_URL, {
         method: "POST",
         headers: {
