@@ -55,6 +55,7 @@ import VolcanoLayer from "@/components/canvas/effects/VolcanoLayer";
 import CareerLayer from "@/components/canvas/effects/CareerLayer";
 import RelationshipLayer from "@/components/canvas/effects/RelationshipLayer";
 import FinanceLayer from "@/components/canvas/effects/FinanceLayer";
+import LearningLayer from "@/components/canvas/effects/LearningLayer";
 import EcoMotes from "@/components/canvas/effects/EcoMotes";
 import SeasonLayer from "@/components/canvas/effects/SeasonLayer";
 import CollectibleLayer from "@/components/canvas/effects/CollectibleLayer";
@@ -411,8 +412,12 @@ function buildArchipelago(state: WorldState): Archipelago {
     const sat = analytics.floraSaturation;
     const blobRng = mulberry32(seed ^ 0xb10b);
 
+    const treeCount =
+      island.id === "learning"
+        ? 1 // Learning keeps a single solitary tree
+        : Math.round((7 + flora * 20) * layout.treeFactor * analytics.treeCountMul * theme.treeMul);
     const trees = scatterOnCap(seed ^ 0x71ee5, geom, {
-      count: Math.round((7 + flora * 20) * layout.treeFactor * analytics.treeCountMul * theme.treeMul),
+      count: treeCount,
       minDistance: 3.0,
       radialMax: 0.85,
       maxSlope: 0.8,
@@ -865,6 +870,7 @@ export default function WorldGraph() {
           <CareerLayer built={data.islands} />
           <RelationshipLayer built={data.islands} />
           <FinanceLayer built={data.islands} />
+          <LearningLayer built={data.islands} />
           <EcoMotes built={data.islands} />
           <AmbientLife state={state} built={data.islands} />
           <WeatherLayer state={state} built={data.islands} />
