@@ -10,17 +10,14 @@ import {
   Color,
   ConeGeometry,
   CylinderGeometry,
-  DoubleSide,
   EquirectangularReflectionMapping,
   Group,
   InstancedMesh,
   Matrix4,
-  Mesh,
   MeshBasicMaterial,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
   OctahedronGeometry,
-  PlaneGeometry,
   PMREMGenerator,
   Quaternion,
   SpriteMaterial,
@@ -42,11 +39,8 @@ const octaGeo = new OctahedronGeometry(0.5, 0);
 const cylGeo = new CylinderGeometry(0.5, 0.6, 1, 6);
 const pyrGeo = new ConeGeometry(0.5, 1, 4); // gold pyramid mote
 // 3D dollar glyph: two 270° torus arcs (the S) + a vertical bar
-const dollarArcGeo = new TorusGeometry(0.5, 0.14, 12, 44, Math.PI * 1.5);
-const barGeo = new CylinderGeometry(0.13, 0.13, 1, 12);
-const haloGeo = new TorusGeometry(1, 0.028, 8, 64);
-const orbitGeo = new OctahedronGeometry(1, 0);
-const rayGeo = new PlaneGeometry(1, 1);
+const dollarArcGeo = new TorusGeometry(0.5, 0.14, 16, 56, Math.PI * 1.5);
+const barGeo = new CylinderGeometry(0.13, 0.13, 1, 16);
 
 function makeAuraTexture(): CanvasTexture {
   const c = document.createElement("canvas");
@@ -310,65 +304,41 @@ function Finance({ island, geom }: BuiltIsland) {
   );
 }
 
-/** The hero floating $ medallion — gold coin, glowing $, halo, aura, rays, orbit. */
+/** The hero floating $ — a premium clearcoat-gold 3D symbol revolving upright. */
 function DollarMarvel({ pos, r, env }: { pos: [number, number, number]; r: number; env: Texture }) {
   const spinRef = useRef<Group>(null);
-  const haloRef = useRef<Mesh>(null);
-  const rayRef = useRef<Group>(null);
-  const orbitRef = useRef<InstancedMesh>(null);
 
   const mats = useMemo(() => {
-    const dollar = new MeshStandardMaterial({ color: "#f3c34a", metalness: 1, roughness: 0.24, envMap: env, envMapIntensity: 1.5, emissive: new Color("#ffcf5a"), emissiveIntensity: 1.6 });
-    const halo = new MeshBasicMaterial({ color: new Color("#ffcf5a").multiplyScalar(1.7), toneMapped: false, transparent: true, opacity: 0.85 });
-    const aura = new SpriteMaterial({ map: makeAuraTexture(), color: 0xffffff, transparent: true, depthWrite: false, blending: AdditiveBlending, opacity: 0.9 });
-    const ray = new MeshBasicMaterial({ color: new Color("#ffe6a0").multiplyScalar(1.3), toneMapped: false, transparent: true, opacity: 0.4, blending: AdditiveBlending, depthWrite: false, side: DoubleSide });
-    const orbit = new MeshBasicMaterial({ color: new Color("#ffe39a").multiplyScalar(1.5), toneMapped: false });
-    return { dollar, halo, aura, ray, orbit };
+    // lacquered gold: full metal + clearcoat lobe + soft emissive bloom
+    const dollar = new MeshPhysicalMaterial({
+      color: "#f6c64e",
+      metalness: 1,
+      roughness: 0.16,
+      clearcoat: 1,
+      clearcoatRoughness: 0.05,
+      envMap: env,
+      envMapIntensity: 1.8,
+      emissive: new Color("#ffcf5a"),
+      emissiveIntensity: 0.9,
+    });
+    const aura = new SpriteMaterial({ map: makeAuraTexture(), color: 0xffe8b0, transparent: true, depthWrite: false, blending: AdditiveBlending, opacity: 0.7 });
+    return { dollar, aura };
   }, [env]);
-
-  const orbits = useMemo(
-    () => Array.from({ length: 14 }, (_, i) => ({ a: (i / 14) * Math.PI * 2, rr: r * (1.25 + (i % 3) * 0.12), tilt: i % 2 ? 0.3 : -0.22, speed: 0.4 + (i % 5) * 0.05, size: r * 0.07 })),
-    [r]
-  );
 
   useFrame((st) => {
     const t = st.clock.elapsedTime;
     if (spinRef.current) spinRef.current.rotation.y = t * 0.5;
-    if (rayRef.current) rayRef.current.rotation.z = t * 0.14;
-    if (haloRef.current) {
-      const p = r * 1.32 * (1 + 0.06 * Math.sin(t * 2));
-      haloRef.current.scale.set(p, p, 1);
-    }
-    mats.dollar.emissiveIntensity = 1.4 + 0.6 * Math.sin(t * 2.2);
-    const ob = orbitRef.current;
-    if (ob) {
-      for (let i = 0; i < orbits.length; i++) {
-        const o = orbits[i];
-        const a = o.a + t * o.speed;
-        tmpV.set(Math.cos(a) * o.rr, Math.sin(a) * o.rr * o.tilt, Math.sin(a) * o.rr);
-        tmpQ.setFromAxisAngle(tmpS.set(0, 1, 0), t * 2 + i);
-        tmpM.compose(tmpV, tmpQ, tmpS.setScalar(o.size * (0.7 + 0.5 * Math.abs(Math.sin(t * 3 + i)))));
-        ob.setMatrixAt(i, tmpM);
-      }
-      ob.instanceMatrix.needsUpdate = true;
-    }
+    mats.dollar.emissiveIntensity = 0.8 + 0.45 * Math.sin(t * 2.2);
   });
 
   return (
     <group position={pos}>
-      <sprite material={mats.aura} scale={[r * 4.4, r * 4.4, 1]} />
-      <group ref={rayRef} position={[0, 0, -0.3]}>
-        {[0, 1, 2, 3, 4, 5].map((i) => (
-          <mesh key={i} geometry={rayGeo} material={mats.ray} rotation={[0, 0, (i / 6) * Math.PI]} scale={[r * 3.6, r * 0.13, 1]} />
-        ))}
-      </group>
+      <sprite material={mats.aura} scale={[r * 3.4, r * 3.4, 1]} />
       <group ref={spinRef} scale={[r, r, r]}>
         <mesh geometry={dollarArcGeo} material={mats.dollar} position={[0, 0.52, 0]} castShadow />
         <mesh geometry={dollarArcGeo} material={mats.dollar} position={[0, -0.52, 0]} rotation={[0, 0, Math.PI]} castShadow />
         <mesh geometry={barGeo} material={mats.dollar} position={[0, 0, 0]} scale={[0.13, 2.5, 0.13]} castShadow />
       </group>
-      <mesh ref={haloRef} geometry={haloGeo} material={mats.halo} scale={[r * 1.32, r * 1.32, 1]} />
-      <instancedMesh ref={orbitRef} args={[orbitGeo, mats.orbit, orbits.length]} frustumCulled={false} />
     </group>
   );
 }
