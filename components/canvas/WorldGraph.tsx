@@ -52,6 +52,7 @@ import GrowthFX from "@/components/canvas/effects/GrowthFX";
 import BeaconLayer from "@/components/canvas/effects/BeaconLayer";
 import GateLayer from "@/components/canvas/effects/GateLayer";
 import VolcanoLayer from "@/components/canvas/effects/VolcanoLayer";
+import CareerLayer from "@/components/canvas/effects/CareerLayer";
 import EcoMotes from "@/components/canvas/effects/EcoMotes";
 import SeasonLayer from "@/components/canvas/effects/SeasonLayer";
 import CollectibleLayer from "@/components/canvas/effects/CollectibleLayer";
@@ -333,6 +334,7 @@ function buildArchipelago(state: WorldState): Archipelago {
                   cliffDeep: theme.split.cliffDeep,
                 }
               : undefined,
+            tiers: theme.tiers,
           }
         : undefined,
     };
@@ -519,7 +521,7 @@ function buildArchipelago(state: WorldState): Archipelago {
     // without crowding. Density tracks ecosystem flora. ----------------------
     const shrubRng = mulberry32(seed ^ 0x5417b);
     for (const sh of scatterOnCap(seed ^ 0x5417b, geom, {
-      count: Math.round((3 + flora * 8) * (theme.split ? 0.55 : 1)),
+      count: Math.round((3 + flora * 8) * (theme.split ? 0.55 : 1) * Math.min(1, Math.max(0.3, theme.treeMul))),
       minDistance: theme.split ? 2.8 : 2.2,
       radialMax: 0.86,
       maxSlope: 0.85,
@@ -840,6 +842,7 @@ export default function WorldGraph() {
           <BridgeLayer state={state} />
           <GateLayer built={data.islands} />
           <VolcanoLayer built={data.islands} />
+          <CareerLayer built={data.islands} />
           <EcoMotes built={data.islands} />
           <AmbientLife state={state} built={data.islands} />
           <WeatherLayer state={state} built={data.islands} />

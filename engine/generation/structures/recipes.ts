@@ -30,12 +30,31 @@ const s5 = (stage: number): boolean => stage >= 5;
 
 // shared composites ----------------------------------------------------------
 
-const grandTower: Recipe = (pal, stage) => [
-  ...towerKit(pal, 2 + Math.min(stage, 4), 1.15),
-  ...(s2(stage) ? place(bannerKit(pal), [0.85, 0, 0.4]) : []),
-  ...(s4(stage) ? place(towerKit(pal, 2, 0.5, { capSpire: false }), [0.95, 0, -0.5]) : []),
-  ...(s5(stage) ? place(crystalKit(pal.glow, 3, 0.5), [-0.9, 0, 0.55]) : []),
-];
+const grandTower: Recipe = (pal, stage) => {
+  const floors = 3 + Math.min(stage, 4);
+  const w = 1.25;
+  const H = floors * 0.92; // approx towerKit stack height
+  const parts: Part[] = towerKit(pal, floors, w);
+  // brushed-steel corner ribs (art-deco verticals)
+  for (const sx of [-1, 1] as const) {
+    for (const sz of [-1, 1] as const) {
+      parts.push({ kind: "box", offset: [sx * w * 0.42, H * 0.5, sz * w * 0.42], scale: [0.07, H, 0.07], color: pal.trim });
+    }
+  }
+  // glowing window-grid columns climbing the front + back faces
+  for (const front of [1, -1] as const) {
+    for (let c = 0; c < 3; c++) {
+      const cx = (c - 1) * w * 0.28;
+      parts.push({ kind: "box", offset: [cx, H * 0.5, front * w * 0.5], scale: [0.06, H * 0.82, 0.03], color: pal.glow, glow: true });
+    }
+  }
+  // deco crown setback
+  parts.push({ kind: "box", offset: [0, H + 0.16, 0], scale: [w * 0.52, 0.3, w * 0.52], color: pal.bodyB });
+  if (s2(stage)) parts.push(...place(bannerKit(pal), [0.9, 0, 0.4]));
+  if (s4(stage)) parts.push(...place(towerKit(pal, 2, 0.5, { capSpire: false }), [1.05, 0, -0.55]));
+  if (s5(stage)) parts.push(...place(crystalKit(pal.glow, 3, 0.5), [-0.95, 0, 0.6]));
+  return parts;
+};
 
 const hall: Recipe = (pal, stage) => [
   ...gableKit(pal, 2.1, 1.3, { windows: 3 }),

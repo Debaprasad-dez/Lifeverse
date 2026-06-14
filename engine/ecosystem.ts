@@ -50,6 +50,8 @@ export interface EcosystemTheme {
    * seam). Adventure uses it for the volcanic range opposite the glacier.
    */
   split?: SplitBiome;
+  /** Concentric stepped terraces (Career metropolis plateaus). */
+  tiers?: number;
 }
 
 export interface SplitBiome {
@@ -70,17 +72,18 @@ export interface SplitBiome {
 export const ECOSYSTEMS: Record<CoreKingdomId, EcosystemTheme> = {
   // CAREER — Metropolis Oasis: emerald courtyards, slate pavers, valley mist
   career: {
-    grassLight: "#3FBE6E",
-    grassDeep: "#1F7A4C",
-    cliffWarm: "#7c8794",
-    cliffDeep: "#3F4E5E",
-    canopy: ["#2ECC71", "#1F7A4C"],
+    grassLight: "#bcc4ca", // pale quartz paving (metropolis, ~80% less lawn)
+    grassDeep: "#8b959c", // slate concrete
+    cliffWarm: "#cfd6dd", // brushed titanium tier rims
+    cliffDeep: "#6b7682",
+    canopy: ["#2ECC71", "#1F7A4C"], // the few remaining topiary stay vivid
     foliage: "topiary",
-    flowers: ["#FFFFFF", "#EAF7EE", "#FFD9A0"],
+    flowers: ["#EAF7EE", "#FFD9A0"],
     boulder: ["#3F4E5E", "#7c8794"],
-    treeMul: 0.95,
-    grassMul: 1.1,
-    motes: { colors: ["#FFFFFF", "#EAF2F8"], count: 44, behavior: "drift", size: 0.9, glow: false },
+    treeMul: 0.2, // sparse manicured greenery only
+    grassMul: 0.18,
+    motes: { colors: ["#FFFFFF", "#EAF2F8"], count: 40, behavior: "drift", size: 0.85, glow: false },
+    tiers: 3, // Lower Harbor → Mid Plaza → High Citadel
   },
 
   // FINANCE — Crystal Oasis: gold/silver dust, gem foliage, sparkle

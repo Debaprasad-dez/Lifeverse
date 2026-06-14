@@ -35,6 +35,9 @@ export interface IslandParams {
       cliffWarm: string;
       cliffDeep: string;
     };
+    /** Concentric stepped terraces (Career metropolis): N plateaus, inner
+     *  highest. Flattens the dome so structures/flora ride clean tiers. */
+    tiers?: number;
   };
 }
 
@@ -90,6 +93,20 @@ export function buildIsland(params: IslandParams): IslandGeometry {
     const theta = Math.atan2(z, x);
     const f = footprintAt(theta);
     const s = clamp(Math.hypot(x, z) / f, 0, 1);
+
+    // Career metropolis: concentric stepped terraces (inner highest), flat
+    // tops with crisp risers — manicured, no rolling hills.
+    if (ground?.tiers && ground.tiers > 0) {
+      const n = ground.tiers;
+      const t = (1 - s) * n;
+      const lv = Math.floor(Math.min(t, n - 1e-4));
+      const frac = t - lv;
+      const step = capHeight * 0.85;
+      const rise = smoothstep(0.8, 0.97, frac); // flat plateau, quick riser
+      const micro = fbm2(noise, x * 0.5 - offX, z * 0.5 + offZ, 2) * 0.05;
+      return (lv + rise) * step + micro;
+    }
+
     const dome = capHeight * 0.45 * (1 - s * s);
     const hills =
       fbm2(noise, x * 0.085 + offX, z * 0.085 + offZ, 4) *
