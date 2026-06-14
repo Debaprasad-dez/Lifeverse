@@ -66,7 +66,7 @@ export default function KingdomIsland({
         rimColor: "#aebfd4",
         rimStrength: 0.2,
       })
-    : getToonMaterial("island", { vertexColors: true });
+    : getToonMaterial("island", { vertexColors: true, grain: 0.13 });
 
   const genesisPhase = useGenesisStore((s) => s.phase);
   const dressed = genesisPhase === "idle" || genesisPhase === "done";

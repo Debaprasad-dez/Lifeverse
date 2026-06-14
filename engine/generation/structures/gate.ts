@@ -7,8 +7,18 @@
  */
 
 import type { IslandGeometry } from "@/engine/generation/island";
-import type { Island } from "@/engine/schema/world";
+import { CORE_KINGDOM_IDS, type CoreKingdomId, type Island } from "@/engine/schema/world";
 import { clamp } from "@/lib/noise";
+import { ECOSYSTEMS } from "@/engine/ecosystem";
+import { GATE_RIVER_U, glacierRiverRFrac, glacierRiverTheta } from "./volcano";
+
+/** Split biomes (Adventure) put the gate over the glacier river near the rim. */
+function isSplitBiome(island: Island): boolean {
+  return (
+    CORE_KINGDOM_IDS.includes(island.id as CoreKingdomId) &&
+    !!ECOSYSTEMS[island.id as CoreKingdomId].split
+  );
+}
 
 export interface GateFrame {
   /** Gate center on the cap, island-local XZ + cap height. */
@@ -27,8 +37,10 @@ export interface GateFrame {
   keepOut: { x: number; z: number; r: number };
 }
 
-/** Azimuth of the island's "front" — toward world center, label-matched. */
+/** Azimuth of the island's "front" — toward world center, label-matched.
+ *  Adventure overrides this to the glacier-river crossing near the rim. */
 export function gateTheta(island: Island): number {
+  if (isSplitBiome(island)) return glacierRiverTheta(GATE_RIVER_U);
   const [px, , pz] = island.position;
   return Math.hypot(px, pz) < 5 ? 0.45 : Math.atan2(-pz, -px);
 }
@@ -36,7 +48,8 @@ export function gateTheta(island: Island): number {
 export function gateFrame(island: Island, geom: IslandGeometry, radius: number): GateFrame {
   const theta = gateTheta(island);
   const f = geom.footprintAt(theta);
-  const rFrac = 0.8; // inboard of the rim so the columns stand on solid cap
+  // Adventure: straddle the river right at its rim crossing; others stay inboard
+  const rFrac = isSplitBiome(island) ? glacierRiverRFrac(GATE_RIVER_U) : 0.8;
   const x = Math.cos(theta) * f * rFrac;
   const z = Math.sin(theta) * f * rFrac;
   const y = geom.capHeightAt(x, z);

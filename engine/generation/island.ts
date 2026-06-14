@@ -22,6 +22,20 @@ export interface IslandParams {
    *  paths run from the island center out to each. Resolved against this
    *  island's own footprint so they land exactly at structure bases. */
   paths?: { t: number; r: number }[];
+  /** Per-kingdom biome ground tint (Phase 11). Defaults to the shared PALETTE. */
+  ground?: {
+    grassLight: string;
+    grassDeep: string;
+    cliffWarm?: string;
+    cliffDeep?: string;
+    /** Second biome on the local +X half (Adventure volcano), seam-blended. */
+    volcano?: {
+      grassLight: string;
+      grassDeep: string;
+      cliffWarm: string;
+      cliffDeep: string;
+    };
+  };
 }
 
 export interface IslandGeometry {
@@ -51,7 +65,7 @@ function distToSpoke(x: number, z: number, px: number, pz: number): number {
 }
 
 export function buildIsland(params: IslandParams): IslandGeometry {
-  const { seed, radius, capHeight, depth, detail = 1, paths = [] } = params;
+  const { seed, radius, capHeight, depth, detail = 1, paths = [], ground } = params;
   const A = Math.max(16, Math.round((params.angularSegments ?? 96) * detail));
   const CAP_ROWS = Math.max(4, Math.round(BASE_CAP_ROWS * detail));
   const CLIFF_ROWS = Math.max(3, Math.round(BASE_CLIFF_ROWS * detail));
@@ -132,10 +146,29 @@ export function buildIsland(params: IslandParams): IslandGeometry {
   const positions = new Float32Array(vertexCount * 3);
   const colors = new Float32Array(vertexCount * 3);
 
-  const grassLight = new Color(PALETTE.grassLight);
-  const grassDeep = new Color(PALETTE.grassDeep);
-  const cliffWarm = new Color(PALETTE.cliffWarm);
-  const cliffDeep = new Color(PALETTE.cliffDeep);
+  const grassLight = new Color(ground?.grassLight ?? PALETTE.grassLight);
+  const grassDeep = new Color(ground?.grassDeep ?? PALETTE.grassDeep);
+  const cliffWarm = new Color(ground?.cliffWarm ?? PALETTE.cliffWarm);
+  const cliffDeep = new Color(ground?.cliffDeep ?? PALETTE.cliffDeep);
+
+  // Optional second biome on the local +X half (Adventure volcano). Per-vertex
+  // colors lerp glacier→volcano across a seam band so the split reads smooth.
+  const volc = ground?.volcano
+    ? {
+        gl: new Color(ground.volcano.grassLight),
+        gd: new Color(ground.volcano.grassDeep),
+        cw: new Color(ground.volcano.cliffWarm),
+        cd: new Color(ground.volcano.cliffDeep),
+      }
+    : null;
+  const seamBand = radius * 0.05; // crisp seam at x=0 → clean 50/50 biome split
+  const sGrassLight = new Color();
+  const sGrassDeep = new Color();
+  const sCliffWarm = new Color();
+  const sCliffDeep = new Color();
+  /** Fraction toward the volcano biome at local x (0 glacier → 1 volcano). */
+  const volcMix = (x: number): number =>
+    volc ? smoothstep(-seamBand, seamBand, x) : 0;
   const rockUnder = new Color(PALETTE.rockUnder);
   const rockTip = new Color(PALETTE.rockTip);
   const mystic = new Color(PALETTE.mystic);
@@ -168,7 +201,14 @@ export function buildIsland(params: IslandParams): IslandGeometry {
         const y = capHeightAt(x, z);
 
         const patch = fbm2(noise, x * 0.16 + 31, z * 0.16 - 17, 3) * 0.5 + 0.5;
-        tmp.copy(grassDeep).lerp(grassLight, patch);
+        let gDeep = grassDeep;
+        let gLight = grassLight;
+        if (volc) {
+          const vm = volcMix(x);
+          gDeep = sGrassDeep.copy(grassDeep).lerp(volc.gd, vm);
+          gLight = sGrassLight.copy(grassLight).lerp(volc.gl, vm);
+        }
+        tmp.copy(gDeep).lerp(gLight, patch);
 
         // worn dirt paths: center → structure anchors, noise-frayed edges
         if (pathPts.length > 0 && s < 0.97) {
@@ -186,7 +226,8 @@ export function buildIsland(params: IslandParams): IslandGeometry {
         }
 
         // dirt ring where grass folds over the rim
-        tmp.lerp(tmp2.copy(cliffWarm), smoothstep(0.93, 1, s) * 0.55);
+        const rimWarm = volc ? sCliffWarm.copy(cliffWarm).lerp(volc.cw, volcMix(x)) : cliffWarm;
+        tmp.lerp(tmp2.copy(rimWarm), smoothstep(0.93, 1, s) * 0.55);
         // valley AO
         const hillN = fbm2(noise, x * 0.085 + offX, z * 0.085 + offZ, 4);
         tmp.multiplyScalar(1 - Math.max(0, -hillN) * 0.22);
@@ -219,7 +260,14 @@ export function buildIsland(params: IslandParams): IslandGeometry {
           ) *
             0.5 +
           0.5;
-        tmp.copy(cliffDeep).lerp(cliffWarm, band);
+        let cDeep = cliffDeep;
+        let cWarm = cliffWarm;
+        if (volc) {
+          const vm = volcMix(x);
+          cDeep = sCliffDeep.copy(cliffDeep).lerp(volc.cd, vm);
+          cWarm = sCliffWarm.copy(cliffWarm).lerp(volc.cw, vm);
+        }
+        tmp.copy(cDeep).lerp(cWarm, band);
         // sedimentary strata: alternate bands shade darker, ledges lighter
         const strata = strataAt(theta, t);
         tmp.multiplyScalar(0.96 + strata * 0.055);
