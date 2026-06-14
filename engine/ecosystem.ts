@@ -88,17 +88,18 @@ export const ECOSYSTEMS: Record<CoreKingdomId, EcosystemTheme> = {
 
   // FINANCE — Crystal Oasis: gold/silver dust, gem foliage, sparkle
   finance: {
-    grassLight: "#E8C84A",
-    grassDeep: "#C7A437",
-    cliffWarm: "#b8902e",
-    cliffDeep: "#8a6f1e",
+    grassLight: "#f0d76a", // gold dust
+    grassDeep: "#cfd2d8", // silver dust
+    cliffWarm: "#b8902e", // gold-veined
+    cliffDeep: "#2a2620", // polished obsidian
     canopy: ["#B9F2FF", "#50C878"],
     foliage: "crystal",
     flowers: ["#FFD700", "#B9F2FF", "#50C878"],
     boulder: ["#9c7c1e", "#C0C0C8"],
-    treeMul: 0.6,
-    grassMul: 0.5,
-    motes: { colors: ["#FFE9A0", "#FFFFFF", "#FFF6C0"], count: 58, behavior: "drift", size: 0.45, glow: true },
+    treeMul: 0.45, // scattered money-trees; hero gem clusters come from FinanceLayer
+    grassMul: 0.4,
+    motes: { colors: ["#FFE9A0", "#FFFFFF", "#FFF6C0"], count: 28, behavior: "drift", size: 0.4, glow: true },
+    tiers: 3, // structured geometric plateaus
   },
 
   // HEALTH — Bioluminescent Forest: deep jade moss, redwoods, glowing spores
@@ -133,17 +134,17 @@ export const ECOSYSTEMS: Record<CoreKingdomId, EcosystemTheme> = {
 
   // RELATIONSHIP — Blossom Valley: warm meadow, sakura, falling petals
   relationships: {
-    grassLight: "#7CA15F",
-    grassDeep: "#5B7A4A",
+    grassLight: "#86a85f", // soft sage → golden-green meadow
+    grassDeep: "#5b7a4a",
     cliffWarm: "#b08a6a",
     cliffDeep: "#8a6a4a",
     canopy: ["#FFC9DE", "#FFB7C5"],
     foliage: "sakura",
-    flowers: ["#FFD700", "#FF6B6B", "#FFB7C5", "#FFFFFF"],
+    flowers: ["#ffb347", "#e2552b", "#ffd95a", "#fff0c4"], // marigold / poppy / primrose
     boulder: ["#a98f6f", "#cdb99c"],
-    treeMul: 1.0,
-    grassMul: 1.2,
-    motes: { colors: ["#FFB7C5", "#FFC9DE", "#FFE0EC"], count: 64, behavior: "fall", size: 0.55, glow: false },
+    treeMul: 0.2, // ~80% fewer scattered pink trees — clusters come from RelationshipLayer
+    grassMul: 0.95,
+    motes: { colors: ["#FFB7C5", "#FFC9DE", "#FFE0EC"], count: 80, behavior: "fall", size: 0.42, glow: false },
   },
 
   // CREATIVITY — Surreal Dreamscape: watercolor ground, pastel spirals, paint motes

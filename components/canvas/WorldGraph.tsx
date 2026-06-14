@@ -53,6 +53,8 @@ import BeaconLayer from "@/components/canvas/effects/BeaconLayer";
 import GateLayer from "@/components/canvas/effects/GateLayer";
 import VolcanoLayer from "@/components/canvas/effects/VolcanoLayer";
 import CareerLayer from "@/components/canvas/effects/CareerLayer";
+import RelationshipLayer from "@/components/canvas/effects/RelationshipLayer";
+import FinanceLayer from "@/components/canvas/effects/FinanceLayer";
 import EcoMotes from "@/components/canvas/effects/EcoMotes";
 import SeasonLayer from "@/components/canvas/effects/SeasonLayer";
 import CollectibleLayer from "@/components/canvas/effects/CollectibleLayer";
@@ -252,8 +254,26 @@ function pushTree(
       out.spheres.push({ position: [bx, by + ps * (0.6 + tiers * 0.55), bz], scale: [ps * 0.28, ps * 0.28, ps * 0.28], color: "#eef6ff" });
       break;
     }
+    case "sakura": {
+      // leaning gnarly trunk + dense fluffy blossom mass (relationships)
+      const lean = (rng() - 0.5) * 0.32;
+      out.trunks.push({ position: [bx, by + 0.55 * s, bz], rotation: [lean, rotY, lean * 0.5], scale: [s * 0.9, s * 1.2, s * 0.9], color: "#6b4a3a" });
+      const cy = by + s * 1.65;
+      for (let j = 0; j < 5; j++) {
+        const a = rotY + j * 1.5 + rng() * 0.8;
+        const off = j === 0 ? 0 : s * (0.5 + rng() * 0.4);
+        const bs = s * (j === 0 ? 1.5 : 0.9 + rng() * 0.3);
+        out.canopies.push({
+          position: [bx + Math.cos(a) * off, cy + (j === 0 ? 0.3 * s : s * rng() * 0.5), bz + Math.sin(a) * off],
+          rotation: [0, a, 0],
+          scale: [bs * 1.25, bs * 1.05, bs * 1.25],
+          color: vitalityTint(rng() < 0.5 ? theme.canopy[1] : theme.canopy[0], sat, rng()),
+        });
+      }
+      break;
+    }
     default: {
-      // autumn / sakura / broadleaf — organic trunk + 3 canopy blobs
+      // autumn / broadleaf — organic trunk + 3 canopy blobs
       out.trunks.push({ position: [bx, by + 0.5 * s - 0.08, bz], rotation: [0, rotY, 0], scale: s, color: PALETTE.trunk });
       const cy = by + s * 1.5;
       for (let j = 0; j < 3; j++) {
@@ -843,6 +863,8 @@ export default function WorldGraph() {
           <GateLayer built={data.islands} />
           <VolcanoLayer built={data.islands} />
           <CareerLayer built={data.islands} />
+          <RelationshipLayer built={data.islands} />
+          <FinanceLayer built={data.islands} />
           <EcoMotes built={data.islands} />
           <AmbientLife state={state} built={data.islands} />
           <WeatherLayer state={state} built={data.islands} />
