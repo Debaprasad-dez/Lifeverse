@@ -10,6 +10,8 @@ import {
   CylinderGeometry,
   DoubleSide,
   Euler,
+  ExtrudeGeometry,
+  Group,
   IcosahedronGeometry,
   InstancedMesh,
   Matrix4,
@@ -17,6 +19,8 @@ import {
   MeshStandardMaterial,
   PlaneGeometry,
   Quaternion,
+  Shape,
+  ShaderMaterial,
   SphereGeometry,
   TorusGeometry,
   Vector3,
@@ -33,6 +37,46 @@ import InstancedPool, { type PoolInstance } from "@/components/canvas/InstancedP
 
 const cylGeo = new CylinderGeometry(1, 1, 1, 8);
 const blobGeo = new IcosahedronGeometry(1, 1);
+const leafGeo = new IcosahedronGeometry(1, 2); // higher detail for foliage clumps
+
+// floating 3D heart (extruded heart shape, point-down) + ECG monitor
+const _heartShape = (() => {
+  const s = new Shape();
+  s.moveTo(0.25, 0.25);
+  s.bezierCurveTo(0.25, 0.25, 0.2, 0, 0, 0);
+  s.bezierCurveTo(-0.3, 0, -0.3, 0.35, -0.3, 0.35);
+  s.bezierCurveTo(-0.3, 0.55, -0.1, 0.77, 0.25, 0.95);
+  s.bezierCurveTo(0.6, 0.77, 0.8, 0.55, 0.8, 0.35);
+  s.bezierCurveTo(0.8, 0.35, 0.8, 0, 0.5, 0);
+  s.bezierCurveTo(0.35, 0, 0.25, 0.25, 0.25, 0.25);
+  return s;
+})();
+const heartGeo = new ExtrudeGeometry(_heartShape, { depth: 0.45, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.09, bevelSegments: 4, steps: 1 });
+heartGeo.center();
+heartGeo.rotateZ(Math.PI); // cleft up, point down
+const heartMat = new MeshStandardMaterial({ color: "#d8243c", metalness: 0.12, roughness: 0.3, emissive: "#5a0a14", emissiveIntensity: 0.45 });
+const ecgGeo = new PlaneGeometry(1, 1);
+const ecgFrag = /* glsl */ `
+uniform float uTime; varying vec2 vUv;
+float ecg(float x){
+  float p = fract(x);
+  float v = 0.06*exp(-pow((p-0.15)/0.03,2.0));
+  v -= 0.05*exp(-pow((p-0.32)/0.012,2.0));
+  v += 0.5*exp(-pow((p-0.36)/0.01,2.0));
+  v -= 0.14*exp(-pow((p-0.41)/0.014,2.0));
+  v += 0.12*exp(-pow((p-0.62)/0.05,2.0));
+  return v;
+}
+void main(){
+  float x = vUv.x*2.0 - uTime*0.3;
+  float d = abs((vUv.y-0.42) - ecg(x));
+  float glow = smoothstep(0.07,0.0,d);
+  float core = smoothstep(0.018,0.0,d);
+  float a = (glow*0.5 + core) * smoothstep(0.0,0.05,vUv.x) * smoothstep(1.0,0.95,vUv.x);
+  gl_FragColor = vec4(vec3(1.0,0.3,0.4)*(glow*0.5+core*1.2), a);
+}
+`;
+const ecgVert = /* glsl */ `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);} `;
 const coneGeo = new ConeGeometry(1, 1, 8);
 const sphGeo = new SphereGeometry(1, 10, 8);
 const planeGeo = new PlaneGeometry(1, 1);
@@ -105,12 +149,18 @@ function HealthForest({ island, geom }: BuiltIsland) {
       const wz = iz + w.z;
       const wy = iy + w.y;
       trunks.push({ position: [wx, wy + w.h * 0.45, wz], rotation: [0, 0, 0], scale: [w.s, w.h, w.s], color: "#4a3a2c" });
+      // lighter, raised crown — many small detailed leaf clumps with gaps so
+      // the lake / lotus / mushrooms underneath stay visible
       const cy = wy + w.h;
-      for (let j = 0; j < 5; j++) {
-        const a = (j / 5) * Math.PI * 2;
-        const off = j === 0 ? 0 : w.s * 3.2;
-        cJade.set(j % 2 ? "#2f6e3e" : "#3a8a4a");
-        canopy.push({ position: [wx + Math.cos(a) * off, cy + (j === 0 ? w.s * 1.2 : w.s * 0.4), wz + Math.sin(a) * off], rotation: [0, a, 0], scale: [w.s * 4.4, w.s * 3.0, w.s * 4.4], color: `#${cJade.getHexString()}` });
+      const clusters = Math.max(8, Math.round(12 * pscale));
+      for (let j = 0; j < clusters; j++) {
+        const a = (j / clusters) * Math.PI * 2 + j * 1.7;
+        const ring = j % 3; // 0 inner-top, 1/2 outer
+        const off = ring === 0 ? w.s * 0.8 : w.s * (1.6 + ring * 0.5);
+        const yy = cy + (ring === 0 ? w.s * 1.7 : w.s * 0.9) + rng() * w.s * 0.5;
+        const cs = w.s * (1.1 + rng() * 0.7);
+        cJade.set(j % 2 ? "#2f6e3e" : "#46a64f");
+        canopy.push({ position: [wx + Math.cos(a) * off, yy, wz + Math.sin(a) * off], rotation: [rng() * 0.5, a, rng() * 0.5], scale: [cs, cs * 0.85, cs], color: `#${cJade.getHexString()}` });
       }
       // drooping strands
       const strands = Math.max(6, Math.round(12 * pscale));
@@ -170,7 +220,8 @@ function HealthForest({ island, geom }: BuiltIsland) {
     const lake = { x: ix + z.lake.x, y: iy + z.lake.y, z: iz + z.lake.z, r: z.lake.r };
     const bugs: Bug[] = Array.from({ length: bugN }, (_, i) => ({ lotus: lotusCenters[i % lotusCenters.length] ?? new Vector3(lake.x, lake.y + 2, lake.z), phase: rng() * 6.28, speed: 0.4 + rng() * 0.4, rr: 1.5 + rng() * 2.5, yr: 1 + rng() * 2.5 }));
 
-    return { radius, ix, iy, iz, trunks, canopy, vines, pods, mushCap, mushStem, mushGlow, ferns, boulders, lilies, lotusCore, petals, flies, lake, rainN, steamN, bugs };
+    const capTop = iy + geom.capHeightAt(0, 0);
+    return { radius, ix, iy, iz, capTop, trunks, canopy, vines, pods, mushCap, mushStem, mushGlow, ferns, boulders, lilies, lotusCore, petals, flies, lake, rainN, steamN, bugs };
   }, [island, geom]);
 
   useFrame((st, delta) => {
@@ -288,7 +339,7 @@ function HealthForest({ island, geom }: BuiltIsland) {
   return (
     <group>
       <InstancedPool geometry={cylGeo} material={bark} instances={v.trunks} castShadow />
-      <InstancedPool geometry={blobGeo} material={canopyMat} instances={v.canopy} castShadow receiveShadow />
+      <InstancedPool geometry={leafGeo} material={canopyMat} instances={v.canopy} castShadow receiveShadow />
       <InstancedPool geometry={cylGeo} material={glowVineMat} instances={v.vines} />
       <InstancedPool geometry={sphGeo} material={glowPodMat} instances={v.pods} />
       <InstancedPool geometry={coneGeo} material={fernMat} instances={v.ferns} castShadow />
@@ -314,6 +365,33 @@ function HealthForest({ island, geom }: BuiltIsland) {
       {/* reactive stress: rain + cool fog dome */}
       <instancedMesh ref={rainRef} args={[planeGeo, rainMat, v.rainN]} frustumCulled={false} renderOrder={7} />
       <mesh geometry={fogGeo} material={fogMat} position={[v.ix, v.iy + v.radius * 0.4, v.iz]} scale={[v.radius * 1.7, v.radius * 1.2, v.radius * 1.7]} />
+
+      {/* floating heart + ECG pulse-line */}
+      <HeartMonitor pos={[v.ix, v.capTop + v.radius * 1.0, v.iz]} r={v.radius * 0.22} />
+    </group>
+  );
+}
+
+/** Floating 3D heart + scrolling ECG pulse-line above the Health island. */
+function HeartMonitor({ pos, r }: { pos: [number, number, number]; r: number }) {
+  const heartRef = useRef<Group>(null);
+  const ecgMat = useMemo(() => new ShaderMaterial({ vertexShader: ecgVert, fragmentShader: ecgFrag, uniforms: { uTime: { value: 0 } }, transparent: true, depthWrite: false }), []);
+  useFrame((st, delta) => {
+    const t = st.clock.elapsedTime;
+    ecgMat.uniforms.uTime.value += delta;
+    if (heartRef.current) {
+      const cyc = t % 1.05; // lub-dub
+      const b = Math.exp(-cyc * 20) * 0.16 + Math.exp(-Math.max(0, cyc - 0.16) * 20) * 0.1;
+      heartRef.current.scale.setScalar(r * (1 + b));
+      heartRef.current.rotation.y = Math.sin(t * 0.4) * 0.3;
+    }
+  });
+  return (
+    <group position={pos}>
+      <group ref={heartRef} scale={r}>
+        <mesh geometry={heartGeo} material={heartMat} castShadow />
+      </group>
+      <mesh geometry={ecgGeo} material={ecgMat} position={[0, -r * 1.5, 0]} scale={[r * 4, r * 1.1, 1]} renderOrder={7} />
     </group>
   );
 }
