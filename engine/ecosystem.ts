@@ -112,24 +112,24 @@ export const ECOSYSTEMS: Record<CoreKingdomId, EcosystemTheme> = {
     foliage: "redwood",
     flowers: ["#FFB7C5", "#FFFFFF", "#9B7EDE", "#2EC4B6"],
     boulder: ["#6B7A5E", "#3A5F3A"],
-    treeMul: 1.3,
-    grassMul: 1.25,
+    treeMul: 0, // trees cleared — hero weeping willows come from HealthLayer
+    grassMul: 1.45, // lush jade undergrowth
     motes: { colors: ["#B8FFE0", "#9B7EDE", "#2EC4B6"], count: 70, behavior: "drift", size: 0.4, glow: true },
   },
 
   // LEARNING — Steampunk Autumn Highlands: flagstone, amber canopy, falling leaves
   learning: {
-    grassLight: "#C49A5E",
-    grassDeep: "#9A7B4E",
+    grassLight: "#7fa860", // green meadow
+    grassDeep: "#52823f",
     cliffWarm: "#8B7355",
     cliffDeep: "#6f5840",
-    canopy: ["#D2691E", "#B22222"],
-    foliage: "autumn",
-    flowers: ["#FFD700", "#E8B84B", "#D35400"],
+    canopy: ["#5fae4e", "#3f8a3a"], // lush green
+    foliage: "broadleaf",
+    flowers: ["#FFD700", "#E8B84B", "#ff9ecf", "#ffffff"],
     boulder: ["#8B7355", "#B8956A"],
-    treeMul: 0.85,
-    grassMul: 0.5,
-    motes: { colors: ["#D2691E", "#FFD700", "#CD853F"], count: 54, behavior: "fall", size: 0.7, glow: false },
+    treeMul: 0.9,
+    grassMul: 0.85,
+    motes: { colors: ["#9fdf7a", "#cdeeb0", "#ffffff"], count: 40, behavior: "fall", size: 0.4, glow: false },
   },
 
   // RELATIONSHIP — Blossom Valley: warm meadow, sakura, falling petals

@@ -33,9 +33,26 @@ interface LifeStore {
   toast: string | null;
   events: LifeEvent[];
   hydrated: boolean;
+  /** Read-only wellbeing signal 0 (calm) → 1 (stressed). Nothing writes it yet;
+   *  the Health island reads it to drive fog/rain. Wire a real source later. */
+  stress: number;
   hydrate: () => Promise<void>;
   logEvent: (kind: LifeEventKind) => void;
   clearToast: () => void;
+}
+
+/** Read-only consecutive-day streak across the health habits (for visuals). */
+export function healthStreak(events: LifeEvent[], now = new Date()): number {
+  const days = new Set(
+    events.filter((e) => e.kind === "exercise" || e.kind === "meditate").map((e) => e.at.slice(0, 10))
+  );
+  let streak = 0;
+  const cursor = new Date(now);
+  while (days.has(cursor.toISOString().slice(0, 10))) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
 }
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -45,6 +62,7 @@ export const useLifeStore = create<LifeStore>((set, get) => ({
   toast: null,
   events: [],
   hydrated: false,
+  stress: 0,
 
   hydrate: async () => {
     if (get().hydrated) return;

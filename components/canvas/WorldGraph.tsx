@@ -56,6 +56,7 @@ import CareerLayer from "@/components/canvas/effects/CareerLayer";
 import RelationshipLayer from "@/components/canvas/effects/RelationshipLayer";
 import FinanceLayer from "@/components/canvas/effects/FinanceLayer";
 import LearningLayer from "@/components/canvas/effects/LearningLayer";
+import HealthLayer from "@/components/canvas/effects/HealthLayer";
 import EcoMotes from "@/components/canvas/effects/EcoMotes";
 import SeasonLayer from "@/components/canvas/effects/SeasonLayer";
 import CollectibleLayer from "@/components/canvas/effects/CollectibleLayer";
@@ -274,20 +275,27 @@ function pushTree(
       break;
     }
     default: {
-      // autumn / broadleaf — organic trunk + 3 canopy blobs
-      out.trunks.push({ position: [bx, by + 0.5 * s - 0.08, bz], rotation: [0, rotY, 0], scale: s, color: PALETTE.trunk });
-      const cy = by + s * 1.5;
-      for (let j = 0; j < 3; j++) {
-        const a = rotY + j * 2.4 + rng() * 0.8;
-        const off = j === 0 ? 0 : s * (0.55 + rng() * 0.25);
-        const bs = s * (j === 0 ? 1.3 : 0.78 + rng() * 0.22);
+      // broadleaf — straight trunk + full rounded layered crown
+      out.trunks.push({ position: [bx, by + 0.6 * s, bz], rotation: [0, rotY, 0], scale: [s * 0.85, s * 1.35, s * 0.85], color: PALETTE.trunk });
+      const cy = by + s * 1.75;
+      out.blobs.push({ position: [bx, by + 0.07, bz], radius: s * 1.9 });
+      // central mass
+      out.canopies.push({ position: [bx, cy + 0.2 * s, bz], rotation: [0, rotY, 0], scale: [s * 1.55, s * 1.5, s * 1.55], color: vitalityTint(theme.canopy[1], sat, rng()) });
+      // surrounding lobes
+      const ring = 4;
+      for (let j = 0; j < ring; j++) {
+        const a = rotY + (j / ring) * Math.PI * 2 + rng() * 0.4;
+        const off = s * 0.72;
+        const bs = s * (0.85 + rng() * 0.25);
         out.canopies.push({
-          position: [bx + Math.cos(a) * off, cy + (j === 0 ? 0.25 * s : s * (0.1 + rng() * 0.45)), bz + Math.sin(a) * off],
+          position: [bx + Math.cos(a) * off, cy + rng() * 0.3 * s, bz + Math.sin(a) * off],
           rotation: [0, a, 0],
           scale: [bs * 1.15, bs, bs * 1.15],
-          color: vitalityTint(rng() < 0.5 ? theme.canopy[1] : theme.canopy[0], sat, rng()),
+          color: vitalityTint(rng() < 0.5 ? theme.canopy[0] : theme.canopy[1], sat, rng()),
         });
       }
+      // crown cap
+      out.canopies.push({ position: [bx, cy + 0.75 * s, bz], rotation: [0, 0, 0], scale: [s * 0.95, s * 0.9, s * 0.95], color: vitalityTint(theme.canopy[0], sat, rng()) });
       break;
     }
   }
@@ -412,12 +420,8 @@ function buildArchipelago(state: WorldState): Archipelago {
     const sat = analytics.floraSaturation;
     const blobRng = mulberry32(seed ^ 0xb10b);
 
-    const treeCount =
-      island.id === "learning"
-        ? 1 // Learning keeps a single solitary tree
-        : Math.round((7 + flora * 20) * layout.treeFactor * analytics.treeCountMul * theme.treeMul);
     const trees = scatterOnCap(seed ^ 0x71ee5, geom, {
-      count: treeCount,
+      count: Math.round((7 + flora * 20) * layout.treeFactor * analytics.treeCountMul * theme.treeMul),
       minDistance: 3.0,
       radialMax: 0.85,
       maxSlope: 0.8,
@@ -871,6 +875,7 @@ export default function WorldGraph() {
           <RelationshipLayer built={data.islands} />
           <FinanceLayer built={data.islands} />
           <LearningLayer built={data.islands} />
+          <HealthLayer built={data.islands} />
           <EcoMotes built={data.islands} />
           <AmbientLife state={state} built={data.islands} />
           <WeatherLayer state={state} built={data.islands} />

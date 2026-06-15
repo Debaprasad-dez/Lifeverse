@@ -46,10 +46,21 @@ export function gateTheta(island: Island): number {
 }
 
 export function gateFrame(island: Island, geom: IslandGeometry, radius: number): GateFrame {
-  const theta = gateTheta(island);
+  // Adventure straddles the river at its rim crossing; Creativity stands over
+  // its waterfall at the border; others sit inboard at the kingdom's front.
+  let theta: number;
+  let rFrac: number;
+  if (isSplitBiome(island)) {
+    theta = glacierRiverTheta(GATE_RIVER_U);
+    rFrac = glacierRiverRFrac(GATE_RIVER_U);
+  } else if (island.id === "creativity") {
+    theta = geom.waterfall.theta;
+    rFrac = 0.9;
+  } else {
+    theta = gateTheta(island);
+    rFrac = 0.8;
+  }
   const f = geom.footprintAt(theta);
-  // Adventure: straddle the river right at its rim crossing; others stay inboard
-  const rFrac = isSplitBiome(island) ? glacierRiverRFrac(GATE_RIVER_U) : 0.8;
   const x = Math.cos(theta) * f * rFrac;
   const z = Math.sin(theta) * f * rFrac;
   const y = geom.capHeightAt(x, z);
